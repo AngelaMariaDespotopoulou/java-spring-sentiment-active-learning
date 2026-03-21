@@ -41,7 +41,8 @@ public class ReviewRequest {
      * <p>Submitted as-is; no normalisation is applied before storage.
      * Must not be blank and must not exceed 5000 characters, consistent
      * with the database column length on
-     * {@link io.github.amdespotopoulou.sentimentactivelearning.persistence.entity.ReviewSample#getReviewText()}.
+     * {@link io.github.amdespotopoulou.sentimentactivelearning.persistence.entity.ReviewSample}
+     * ({@code review_text} column, max 5000 characters).
      */
     @NotBlank(message = "Review text must not be blank")
     @Size(max = 5000, message = "Review text must not exceed 5000 characters")

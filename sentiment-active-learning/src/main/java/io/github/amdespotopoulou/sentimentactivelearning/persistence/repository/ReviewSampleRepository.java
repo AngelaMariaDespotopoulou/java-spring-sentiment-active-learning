@@ -128,8 +128,9 @@ public interface ReviewSampleRepository extends JpaRepository<ReviewSample, Long
      *
      * <p>Used by {@code TrainingService} to verify that the minimum training
      * sample threshold defined in
-     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps#getMinTrainingSamples()}
-     * has been reached before attempting a training run.
+     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps}
+     * ({@code active-learning.min-training-samples}) has been reached before
+     * attempting a training run.
      *
      * @return the count of records where {@code label} is not {@code null}
      */

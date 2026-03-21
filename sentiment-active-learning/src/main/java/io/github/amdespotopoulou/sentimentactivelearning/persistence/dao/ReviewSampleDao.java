@@ -173,8 +173,8 @@ public interface ReviewSampleDao {
      * <p>Used by {@code ActiveLearningService} to track how many Claude-labelled
      * samples have accumulated since the last retraining run, determining when
      * the retrain batch size threshold defined in
-     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps#getRetrainBatchSize()}
-     * has been reached.
+     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps}
+     * ({@code active-learning.retrain-batch-size}) has been reached.
      *
      * @param labelSource the label source to count; must not be {@code null}
      * @return the count of records with the given label source

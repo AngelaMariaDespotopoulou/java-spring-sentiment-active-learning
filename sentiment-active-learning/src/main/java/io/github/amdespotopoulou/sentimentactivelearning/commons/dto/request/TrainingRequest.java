@@ -36,7 +36,8 @@ public class TrainingRequest {
     /**
      * Whether to bypass the minimum training sample threshold and force a
      * training run even if fewer samples than
-     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps#getMinTrainingSamples()}
+     * {@link io.github.amdespotopoulou.sentimentactivelearning.config.ActiveLearningProps}
+     * ({@code active-learning.min-training-samples})
      * are available.
      *
      * <p>Use with caution — training on too few samples produces an unreliable
@@ -46,7 +47,7 @@ public class TrainingRequest {
     @JsonProperty("forceRetrain")
     @Schema(
             description = "If true, bypasses the minimum sample threshold and forces training immediately. " +
-                          "Use with caution — may produce an unreliable model on small datasets.",
+                    "Use with caution — may produce an unreliable model on small datasets.",
             example = "false",
             defaultValue = "false"
     )
@@ -64,7 +65,7 @@ public class TrainingRequest {
     @JsonProperty("note")
     @Schema(
             description = "Optional human-readable note describing why this training run was triggered. " +
-                          "Logged for audit purposes. Not persisted.",
+                    "Logged for audit purposes. Not persisted.",
             example = "Manual retrain after bulk seed data import.",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED
     )
