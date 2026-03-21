@@ -15,11 +15,12 @@ import org.springframework.web.client.RestClientException;
  * Service responsible for consulting the Claude AI oracle to assign a
  * sentiment label to an uncertain movie review.
  *
- * <p>This service is invoked by the active-learning pipeline when the Naive
- * Bayes classifier's confidence falls below the configured uncertainty
- * threshold. It sends the review text to the Anthropic Claude API and parses
- * the single-word response ({@code POSITIVE} or {@code NEGATIVE}) into a
- * {@link SentimentLabel}.
+ * <p>This is the production implementation of {@link ClaudeOracle}. It sends
+ * the review text to the Anthropic Claude API and parses the single-word
+ * response ({@code POSITIVE} or {@code NEGATIVE}) into a {@link SentimentLabel}.
+ *
+ * <p>For unit testing without a real API key, inject a stub implementation
+ * of {@link ClaudeOracle} instead of this class.
  *
  * <h2>Error handling</h2>
  * <ul>
@@ -42,7 +43,7 @@ import org.springframework.web.client.RestClientException;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ClaudeOracleService {
+public class ClaudeOracleService implements ClaudeOracle {
 
     /**
      * Pre-configured HTTP client for the Claude API.
@@ -61,28 +62,13 @@ public class ClaudeOracleService {
     // -------------------------------------------------------------------------
 
     /**
-     * Consults the Claude AI oracle to obtain a sentiment label for the given
-     * review text.
+     * {@inheritDoc}
      *
-     * <p>The full call sequence is:
-     * <ol>
-     *   <li>Assemble the request payload via {@link ClaudeRequestMapper}.</li>
-     *   <li>POST the payload to the Anthropic Messages API.</li>
-     *   <li>Extract the first text content block from the response.</li>
-     *   <li>Parse the text into a {@link SentimentLabel}.</li>
-     * </ol>
-     *
-     * @param reviewText the raw movie review text to label; must not be
-     *                   {@code null} or blank
-     * @return the {@link SentimentLabel} assigned by Claude —
-     *         {@code POSITIVE} or {@code NEGATIVE}
-     * @throws ClaudeApiException with {@link ErrorCode#CLAUDE_API_UNAVAILABLE}
-     *         if the HTTP call fails due to a network error, timeout, or
-     *         non-2xx response from the Anthropic API
-     * @throws ClaudeApiException with {@link ErrorCode#CLAUDE_RESPONSE_INVALID}
-     *         if the response body cannot be parsed into a valid
-     *         {@link SentimentLabel}
+     * <p>Implementation detail: assembles a Claude API request via
+     * {@link ClaudeRequestMapper}, posts it to the Anthropic Messages API,
+     * and parses the single-word response into a {@link SentimentLabel}.
      */
+    @Override
     public SentimentLabel label(String reviewText) {
         log.debug("Consulting Claude oracle for review of length: {}", reviewText.length());
 
@@ -176,7 +162,7 @@ public class ClaudeOracleService {
             throw new ClaudeApiException(
                     ErrorCode.CLAUDE_RESPONSE_INVALID,
                     "Claude returned an unrecognised sentiment label: '" + rawText.trim() +
-                    "'. Expected POSITIVE or NEGATIVE.");
+                            "'. Expected POSITIVE or NEGATIVE.");
         }
     }
 }
