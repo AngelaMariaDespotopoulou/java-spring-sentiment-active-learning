@@ -1,5 +1,5 @@
 # =============================================================================
-# camunda-kafka-bridge — .gitignore
+# java-spring-sentiment-active-learning — .gitignore
 # Place this file in the project root (same directory as pom.xml)
 # =============================================================================
 
@@ -199,6 +199,21 @@ $RECYCLE.BIN/
 # DOCKER
 # =============================================================================
 .docker/
+
+
+# =============================================================================
+# ML MODEL — NEVER COMMIT TRAINED MODEL FILES
+# =============================================================================
+
+# Serialised Tribuo model files produced by TrainingService.
+# These are runtime artefacts, not source code. They can be large and must
+# be stored on a bind-mounted Docker volume instead.
+model/
+*.ser
+
+# Keep the model directory itself trackable via a .gitkeep placeholder,
+# but ignore everything inside it.
+!model/.gitkeep
 
 
 # =============================================================================
