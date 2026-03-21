@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        Spring Boot 3.5.11 - latest stable 3.5.x patch.
+        Java version is pinned to 21 LTS (see properties below) for maximum
+        compatibility with Tribuo 4.3.1 and the broader ML library ecosystem.
+        Migrate to Java 25 + Spring Boot 4.0 once Tribuo certifies JDK 25 support.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.11</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.github.amdespotopoulou</groupId>
+    <artifactId>sentiment-active-learning</artifactId>
+    <version>1.0.0</version>
+    <name>sentiment-active-learning</name>
+    <description>
+        Java Spring Boot application that classifies movie-review sentiment using a Naive Bayes
+        model built with Oracle Tribuo. Features a full active-learning cycle: the model detects
+        its own uncertainty, consults Claude AI as a labelling oracle, and retrains itself
+        continuously to improve accuracy.
+    </description>
+    <url>https://github.com/amdespotopoulou/java-spring-sentiment-active-learning</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>amdespotopoulou</id>
+            <name>Angela-Maria Despotopoulou</name>
+            <url>https://github.com/amdespotopoulou</url>
+            <roles>
+                <role>developer</role>
+            </roles>
+            <timezone>Europe/Athens</timezone>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection/>
+        <developerConnection/>
+        <tag/>
+        <url/>
+    </scm>
+
+    <properties>
+        <!--
+            Java 21 LTS - pinned for Tribuo 4.3.1 compatibility.
+            Tribuo and several of its ONNX/protobuf transitive dependencies
+            have not been formally tested on JDK 25 as of this writing.
+            Revisit once Tribuo 4.4.x publishes JDK 25 certification.
+        -->
+        <java.version>21</java.version>
+
+        <!--
+            Tribuo 4.3.2 - latest stable Oracle Tribuo release.
+            Provides Naive Bayes classification (tribuo-classification-mnnaivebayes),
+            TF-IDF feature extraction, and the full model training / evaluation /
+            serialisation pipeline. All tribuo-* artifacts share this version;
+            managed via a single property.
+        -->
+        <tribuo.version>4.3.2</tribuo.version>
+
+        <!--
+            Lombok 1.18.42 - latest stable; full JDK 21 and JDK 25 support confirmed.
+            Compile-time only: not bundled in the final JAR.
+            Provides @Slf4j, @RequiredArgsConstructor, @Builder, @Data, etc.
+            NOTE: Versions below 1.18.30 are NOT compatible with Java 21 and will
+            throw com.sun.tools.javac.code.TypeTag :: UNKNOWN at build time.
+        -->
+        <lombok.version>1.18.42</lombok.version>
+
+        <!--
+            MapStruct 1.5.5.Final - latest stable for Java 21 + Spring Boot 3.x.
+            Generates type-safe, compile-time DTO <-> entity mappers.
+            Must be processed AFTER Lombok in the annotation processor chain
+            (see maven-compiler-plugin configuration below).
+        -->
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+
+        <!--
+            lombok-mapstruct-binding 0.2.0 - required bridge artifact.
+            Guarantees correct annotation processor ordering when both Lombok
+            and MapStruct are on the same processor path. Without it, MapStruct
+            may run before Lombok generates getters/setters and produce empty mappers.
+        -->
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+
+        <!--
+            springdoc-openapi 2.5.0 - latest stable for Spring Boot 3.x.
+            Provides Swagger UI at /swagger-ui/index.html and the OpenAPI 3
+            specification at /v3/api-docs. Both endpoints are protected via
+            Spring Security HTTP Basic Auth (see SecurityConfig).
+
+            IMPORTANT: Do NOT pin swagger-annotations-jakarta separately.
+            SpringDoc 2.5.x bundles swagger-core-jakarta internally. Its
+            ModelResolver calls Schema.$dynamicRef() added in 2.2.26+.
+            Pinning any older version causes NoSuchMethodError on /v3/api-docs.
+            Let Maven transitive resolution supply the correct matching version.
+        -->
+        <springdoc.version>2.5.0</springdoc.version>
+
+        <!--
+            Jackson is managed by spring-boot-starter-parent; version pinned
+            here for transparency and to guard against transitive regressions.
+        -->
+        <jackson.version>2.17.1</jackson.version>
+
+    </properties>
+
+    <dependencies>
+
+        <!-- ============================================================ -->
+        <!-- Spring Boot Web                                               -->
+        <!-- Embedded Tomcat, REST controllers, DispatcherServlet.        -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Spring Boot Actuator                                          -->
+        <!-- Exposes /actuator/health, used by the Docker healthcheck.    -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Spring Security                                               -->
+        <!-- Secures /swagger-ui/** and /v3/api-docs/** with Basic Auth.  -->
+        <!-- All API and actuator routes are left open (internal network). -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Jakarta Bean Validation                                       -->
+        <!-- Enables @Valid, @NotBlank, @NotNull, @Size etc. on DTOs and  -->
+        <!-- entities. Validation errors are caught by the global          -->
+        <!-- exception handler and returned as structured 400 responses.  -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Spring Data JPA + H2                                          -->
+        <!-- JPA repository layer for persisting labelled review samples.  -->
+        <!-- H2 runs in-memory in dev and as a file-backed store in prod.  -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Spring Boot Configuration Processor                           -->
+        <!-- Generates META-INF/spring-configuration-metadata.json for    -->
+        <!-- IDE auto-completion of application.properties keys.           -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Oracle Tribuo - Machine Learning Framework                    -->
+        <!--                                                               -->
+        <!-- tribuo-core                    : base dataset/feature/model  -->
+        <!-- tribuo-classification-core     : Label, LabelFactory, metrics-->
+        <!-- tribuo-classification-mnnaivebayes: MultinomialNaiveBayes impl -->
+        <!-- tribuo-data                    : TextFeatureExtractor, TF-IDF -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-core</artifactId>
+            <version>${tribuo.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-classification-core</artifactId>
+            <version>${tribuo.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-classification-mnnaivebayes</artifactId>
+            <version>${tribuo.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-data</artifactId>
+            <version>${tribuo.version}</version>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Jackson - JSON Serialisation / Deserialisation                -->
+        <!-- Used for Claude AI API request/response payloads and all     -->
+        <!-- internal DTOs. Version pinned explicitly for regression safety.-->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Lombok                                                        -->
+        <!-- Compile-time code generation: @Slf4j, @RequiredArgsConstructor,-->
+        <!-- @Data, @Builder, etc. Not included in the final JAR.         -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- MapStruct - DTO <-> Entity Mapping                            -->
+        <!-- Generates type-safe mappers at compile time via annotation    -->
+        <!-- processing. Requires correct ordering after Lombok (see       -->
+        <!-- maven-compiler-plugin annotationProcessorPaths below).        -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- SpringDoc OpenAPI / Swagger UI                                -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Test                                                          -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!--
+                Javadoc configuration:
+                  - doclint all,-missing: enforce HTML/tag correctness but treat
+                    undocumented constructors and no-comment classes as warnings,
+                    not errors, so they never block the build.
+                  - quiet: suppress per-file progress noise.
+                  - failOnError: false lets mvn javadoc:javadoc always produce
+                    the site even if minor warnings remain.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <doclint>all,-missing</doclint>
+                    <quiet>true</quiet>
+                    <failOnError>false</failOnError>
+                    <outputDirectory>target/site/apidocs</outputDirectory>
+                </configuration>
+            </plugin>
+
+            <!-- Spring Boot fat-JAR packaging -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Exclude Lombok from the packaged JAR.
+                        It is a compile-time-only tool and must not be bundled.
+                    -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!--
+                Compiler configuration:
+                  - release pins source, target, and bootclasspath to java.version.
+                  - -parameters is required by Spring MVC to resolve controller
+                    method parameter names at runtime without debug info.
+                  - Annotation processors are ordered deliberately:
+                      1. Lombok                     — generates getters/setters/constructors first.
+                      2. lombok-mapstruct-binding    — enforces the ordering contract.
+                      3. MapStruct                   — sees Lombok-generated methods when it runs.
+                      4. spring-boot-configuration-processor — generates IDE metadata.
+                  - mapstruct.defaultComponentModel=spring ensures generated mappers
+                    are Spring @Component beans, injectable via @Autowired / constructor.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>${java.version}</release>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                        <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>

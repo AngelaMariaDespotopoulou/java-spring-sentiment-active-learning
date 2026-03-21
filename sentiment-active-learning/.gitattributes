@@ -1,0 +1,33 @@
+# Maven wrapper — enforce correct line endings per platform
+/mvnw text eol=lf
+*.cmd text eol=crlf
+
+# Source files — normalize to LF in the repository
+*.java text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Shell scripts — always LF
+*.sh text eol=lf
+
+# Windows scripts — always CRLF
+*.bat text eol=crlf
+
+# Binary files — no line ending conversion, no diff
+*.jar binary
+*.class binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar.gz binary
+*.war binary
+*.ear binary
