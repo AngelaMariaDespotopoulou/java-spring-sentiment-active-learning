@@ -195,29 +195,58 @@
         <!-- tribuo-classification-core     : Label, LabelFactory, metrics-->
         <!-- tribuo-classification-mnnaivebayes: MultinomialNaiveBayes impl -->
         <!-- tribuo-data                    : TextFeatureExtractor, TF-IDF -->
+        <!--                                                               -->
+        <!-- commons-logging is excluded from all Tribuo artifacts because -->
+        <!-- Spring Boot provides spring-jcl as a replacement. Leaving     -->
+        <!-- both on the classpath causes a "Commons Logging discovery"    -->
+        <!-- warning on every startup.                                     -->
         <!-- ============================================================ -->
         <dependency>
             <groupId>org.tribuo</groupId>
             <artifactId>tribuo-core</artifactId>
             <version>${tribuo.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.tribuo</groupId>
             <artifactId>tribuo-classification-core</artifactId>
             <version>${tribuo.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.tribuo</groupId>
             <artifactId>tribuo-classification-mnnaivebayes</artifactId>
             <version>${tribuo.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>org.tribuo</groupId>
             <artifactId>tribuo-data</artifactId>
             <version>${tribuo.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- ============================================================ -->
