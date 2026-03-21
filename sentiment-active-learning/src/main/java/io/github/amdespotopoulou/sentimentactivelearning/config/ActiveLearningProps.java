@@ -109,9 +109,16 @@ public class ActiveLearningProps {
      * Whether to attempt model loading or retraining automatically when the
      * application starts.
      *
-     * <p>When {@code true}, the startup sequence follows the Option 3 strategy:
-     * load the serialised model from disk if it exists, retrain if it is stale
-     * or missing, or wait silently if there is insufficient labelled data.
+     * <p>When {@code true}, the startup sequence attempts to restore the model
+     * from disk before accepting classification requests:
+     * (1) if a serialised model file exists at {@code modelStoragePath} and
+     *     fewer than {@code stalenessThresholdSamples} new labels have been
+     *     added since it was saved, the file is loaded directly into memory;
+     * (2) if the file exists but the model is stale, or if no file exists but
+     *     enough labelled data is available, the model is retrained from
+     *     scratch and the result is saved to disk;
+     * (3) if neither condition is met, the application starts in an untrained
+     *     state and waits for more labelled data before training.
      * When {@code false}, the application starts in an untrained state
      * regardless of what is on disk or in the database. Defaults to {@code true}.
      */

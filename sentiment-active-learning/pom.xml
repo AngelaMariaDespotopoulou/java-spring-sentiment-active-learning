@@ -249,6 +249,23 @@
             </exclusions>
         </dependency>
 
+        <!--
+            tribuo-util-tokenization provides UniversalTokenizer and other
+            tokenizers used by the text feature extraction pipeline.
+            Required separately from tribuo-data — not pulled in transitively.
+        -->
+        <dependency>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-util-tokenization</artifactId>
+            <version>${tribuo.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- ============================================================ -->
         <!-- Jackson - JSON Serialisation / Deserialisation                -->
         <!-- Used for Claude AI API request/response payloads and all     -->

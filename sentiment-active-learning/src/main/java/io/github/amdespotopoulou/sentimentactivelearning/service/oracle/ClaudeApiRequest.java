@@ -35,7 +35,8 @@ class ClaudeApiRequest {
 
     /**
      * The Claude model identifier to use for this request.
-     * Sourced from {@link io.github.amdespotopoulou.sentimentactivelearning.config.ClaudeProps#getModel()}.
+     * Sourced from {@link io.github.amdespotopoulou.sentimentactivelearning.config.ClaudeProps}
+     * ({@code claude.api.model}).
      */
     @JsonProperty("model")
     String model;
@@ -43,7 +44,8 @@ class ClaudeApiRequest {
     /**
      * Maximum number of tokens Claude may return.
      * Kept low — we only need a single POSITIVE or NEGATIVE token.
-     * Sourced from {@link io.github.amdespotopoulou.sentimentactivelearning.config.ClaudeProps#getMaxTokens()}.
+     * Sourced from {@link io.github.amdespotopoulou.sentimentactivelearning.config.ClaudeProps}
+     * ({@code claude.api.max-tokens}).
      */
     @JsonProperty("max_tokens")
     int maxTokens;
