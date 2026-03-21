@@ -1,4 +1,4 @@
-package io.github.amdespotopoulou.sentimentactivelearning.commons.dto;
+package io.github.amdespotopoulou.sentimentactivelearning.commons.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.github.amdespotopoulou.sentimentactivelearning.commons.enums.SentimentLabel;

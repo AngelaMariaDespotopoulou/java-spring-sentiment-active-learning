@@ -17,7 +17,7 @@
  * <h2>Contents</h2>
  * <ul>
  *   <li>{@code ReviewSampleMapper} — converts between
- *       {@link io.github.amdespotopoulou.sentimentactivelearning.commons.dto.ReviewRequest}
+ *       {@link io.github.amdespotopoulou.sentimentactivelearning.commons.dto.request.ReviewRequest}
  *       and
  *       {@link io.github.amdespotopoulou.sentimentactivelearning.persistence.entity.ReviewSample},
  *       and maps entities to response DTOs for the API layer.</li>
