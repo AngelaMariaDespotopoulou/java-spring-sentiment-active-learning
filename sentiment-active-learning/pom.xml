@@ -189,18 +189,6 @@
         </dependency>
 
         <!-- ============================================================ -->
-        <!-- Docker Compose Support (dev convenience)                      -->
-        <!-- Auto-starts docker-compose services when running locally.     -->
-        <!-- Has no effect in production (optional + runtime scope).       -->
-        <!-- ============================================================ -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-docker-compose</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- ============================================================ -->
         <!-- Oracle Tribuo - Machine Learning Framework                    -->
         <!--                                                               -->
         <!-- tribuo-core                    : base dataset/feature/model  -->
