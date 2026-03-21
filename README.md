@@ -9,7 +9,7 @@ A Java Spring Boot application that classifies movie review sentiment using a Na
   <img src="https://img.freepik.com/premium-vector/cute-red-panda-construction-worker-cartoon_471222-1406.jpg?w=300" />
 </p>
 
-<!-->
+<!--
 
 ## Directory contents
 Here follows a short introduction of the current directory's contents:
