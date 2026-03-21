@@ -189,6 +189,18 @@
         </dependency>
 
         <!-- ============================================================ -->
+        <!-- Docker Compose Support (dev convenience)                      -->
+        <!-- Auto-starts docker-compose services when running locally.     -->
+        <!-- Has no effect in production (optional + runtime scope).       -->
+        <!-- ============================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-docker-compose</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ============================================================ -->
         <!-- Oracle Tribuo - Machine Learning Framework                    -->
         <!--                                                               -->
         <!-- tribuo-core                    : base dataset/feature/model  -->
@@ -333,22 +345,37 @@
                   - release pins source, target, and bootclasspath to java.version.
                   - -parameters is required by Spring MVC to resolve controller
                     method parameter names at runtime without debug info.
+                  - fork=true is required to pass the add-opens flag to the compiler JVM.
+                  - The add-opens flag (prefixed with -J to target the compiler JVM)
+                    suppresses the sun.misc.Unsafe::objectFieldOffset deprecation warning
+                    emitted by Lombok's internal Permit class on JDK 21+.
+                    Remove once Lombok ships a JDK-clean internals rewrite.
                   - Annotation processors are ordered deliberately:
                       1. Lombok                     — generates getters/setters/constructors first.
                       2. lombok-mapstruct-binding    — enforces the ordering contract.
                       3. MapStruct                   — sees Lombok-generated methods when it runs.
                       4. spring-boot-configuration-processor — generates IDE metadata.
-                  - mapstruct.defaultComponentModel=spring ensures generated mappers
-                    are Spring @Component beans, injectable via @Autowired / constructor.
+                  - mapstruct.defaultComponentModel=spring is passed via
+                    annotationProcessorOptions (not compilerArgs) because it is a
+                    MapStruct processor option, not a javac flag. Passing it in
+                    compilerArgs causes a "not recognised by any processor" warning.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <release>${java.version}</release>
+                    <fork>true</fork>
                     <compilerArgs>
                         <arg>-parameters</arg>
+                        <!--
+                            Instructs MapStruct to generate mapper implementations as
+                            Spring @Component beans, injectable via constructor injection.
+                            The -A prefix is the standard javac annotation processor
+                            option syntax; this is the correct place for this flag.
+                        -->
                         <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                        <arg>-J--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>
