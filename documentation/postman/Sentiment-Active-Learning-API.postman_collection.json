@@ -1,0 +1,882 @@
+{
+  "info": {
+    "_postman_id": "sal-api-collection-v1",
+    "name": "Sentiment Active Learning API",
+    "description": "# Sentiment Active Learning API\n\nComplete test collection for the Sentiment Active Learning Spring Boot application.\n\n## Overview\nThis application classifies movie-review sentiment (POSITIVE / NEGATIVE) using a Naive Bayes model built with Oracle Tribuo. It implements a full active-learning cycle: the model detects its own uncertainty, consults Claude AI as a labelling oracle, and retrains itself automatically.\n\n## Authentication\nAll endpoints are protected with HTTP Basic Auth. Credentials are stored as environment variables:\n- `{{username}}` — Swagger UI username (default: `admin`)\n- `{{password}}` — Swagger UI password (default: `admin`)\n\n## Recommended Test Workflow\n1. **Health check** — verify the application is running\n2. **Seed reviews** — run the `🌱 Seed Data` folder to populate the database (runs 20 requests automatically via collection runner)\n3. **Train the model** — `POST /api/model/train`\n4. **Submit a review** — `POST /api/reviews` and observe classification\n5. **Monitor the cycle** — `GET /api/model/active-learning-status`\n\n## Dynamic Variables\nThe `POST /api/reviews` request automatically saves the returned `id` as `{{lastReviewId}}`. All subsequent single-review endpoints use this variable automatically.\n\n## Error Envelope\nAll errors return a uniform JSON structure:\n```json\n{\n  \"httpStatus\": 409,\n  \"httpStatusText\": \"Conflict\",\n  \"errorCode\": \"MODEL_NOT_TRAINED\",\n  \"message\": \"The model has not been trained yet.\"\n}\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "{{username}}", "type": "string" },
+      { "key": "password", "value": "{{password}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level pre-request script",
+          "// Validates that required environment variables are set",
+          "const required = ['baseUrl', 'username', 'password'];",
+          "required.forEach(v => {",
+          "    if (!pm.environment.get(v) && !pm.collectionVariables.get(v)) {",
+          "        console.warn(`[SAL] Warning: variable '${v}' is not set. Please configure your environment.`);",
+          "    }",
+          "});"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level test: response time check",
+          "pm.test('Response time is under 5000ms', () => {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "// Collection-level test: Content-Type is JSON for non-empty responses",
+          "if (pm.response.code !== 204 && pm.response.text().length > 0) {",
+          "    pm.test('Content-Type is application/json', () => {",
+          "        pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:8080", "type": "string" },
+    { "key": "username",     "value": "admin",                 "type": "string" },
+    { "key": "password",     "value": "admin",                 "type": "string" },
+    { "key": "lastReviewId", "value": "1",                     "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "🏥 Health",
+      "description": "Application health check via Spring Boot Actuator. Use this first to verify the application is running before executing any other requests.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] },
+            "description": "Returns the health status of the application. Does not require authentication. Expected: `{ \"status\": \"UP\" }`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Application is UP', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.equal('UP');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Application healthy",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"UP\",\n  \"components\": {\n    \"db\": { \"status\": \"UP\" },\n    \"diskSpace\": { \"status\": \"UP\" }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "🌱 Seed Data",
+      "description": "Run this folder via the **Collection Runner** to seed the database with 20 labelled reviews (10 positive, 10 negative) before training the model.\n\n**How to use:**\n1. Click the folder → Run folder\n2. All 20 requests run in sequence\n3. Then run `POST /api/model/train` to train on the seeded data",
+      "item": [
+        {
+          "name": "Seed — Positive 01",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"An absolute masterpiece. The performances were outstanding and the direction was flawless.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 02",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Brilliant storytelling from start to finish. One of the best films I have seen in years.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 03",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"A truly wonderful film. The chemistry between the leads was extraordinary and the plot kept me hooked.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 04",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Heartwarming and beautifully crafted. The cinematography alone is worth the price of admission.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 05",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Gripping, intelligent and deeply moving. The screenplay is among the finest I have ever encountered.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 06",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"A rare gem. Every scene is purposeful and every performance is note-perfect.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 07",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Superb. An emotionally resonant story told with incredible restraint and skill.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 08",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Easily one of the best films of the decade. Funny, heartfelt and visually stunning.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 09",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"The director has outdone themselves. A thrilling, thought-provoking and ultimately triumphant work.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Positive 10",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Exquisite. The kind of film that stays with you long after the credits roll.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 01",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"A complete waste of time. The plot made no sense and the acting was embarrassingly poor.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 02",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Dreadful from beginning to end. I cannot believe this film received any praise whatsoever.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 03",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Painful to watch. The dialogue was cringe-worthy and the pacing was absolutely terrible.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 04",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Boring, predictable and deeply unoriginal. I walked out after the first hour.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 05",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Awful special effects, wooden performances and a script that insults the audience's intelligence.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 06",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"A loud, incoherent mess. The director had no idea what story they were trying to tell.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 07",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Uninspired, derivative and thoroughly forgettable. Save your money and your evening.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 08",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Possibly the worst film I have seen in a decade. Every choice made by the production team was wrong.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 09",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Tedious, self-indulgent and devoid of any emotional truth. The running time felt like three hours.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Seed — Negative 10",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reviewText\": \"Horrible in every way. The story, the characters, the music — nothing worked. A total disaster.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Seeded successfully', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Label All Seed Reviews — Positive Batch",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/reviews/1/label", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "1", "label"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"POSITIVE\"\n}" },
+            "description": "⚠️ After seeding, use GET /api/reviews to find the actual IDs and apply labels via PATCH /api/reviews/:id/label for each review. This request is a reminder — update the IDs as needed."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["// Reminder: update IDs after seeding", "pm.test('Label applied', () => pm.response.to.have.status(200));"] } }]
+        }
+      ]
+    },
+
+    {
+      "name": "📝 Reviews",
+      "description": "Endpoints for submitting reviews for classification, retrieving samples, and managing labels.",
+      "item": [
+
+        {
+          "name": "Submit Review for Classification",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewText\": \"This film was absolutely brilliant. The performances were extraordinary and the direction was flawless.\"\n}"
+            },
+            "description": "Submits a review for classification. The model classifies it and — if uncertain — consults the Claude AI oracle. The returned `id` is automatically saved as `{{lastReviewId}}` for use in subsequent requests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has required fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('reviewText');",
+                  "    pm.expect(json).to.have.property('confidenceScore');",
+                  "    pm.expect(json).to.have.property('uncertain');",
+                  "    pm.expect(json).to.have.property('label');",
+                  "    pm.expect(json).to.have.property('labelSource');",
+                  "});",
+                  "pm.test('Label is POSITIVE or NEGATIVE', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(['POSITIVE', 'NEGATIVE']).to.include(json.label);",
+                  "});",
+                  "pm.test('Confidence score is between 0 and 1', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.confidenceScore).to.be.within(0, 1);",
+                  "});",
+                  "// Save the review ID for downstream requests",
+                  "const json = pm.response.json();",
+                  "if (json && json.id) {",
+                  "    pm.collectionVariables.set('lastReviewId', json.id);",
+                  "    console.log('[SAL] Saved lastReviewId:', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 — Classified (confident, SEED label)",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 42,\n  \"reviewText\": \"This film was absolutely brilliant. The performances were extraordinary and the direction was flawless.\",\n  \"label\": \"POSITIVE\",\n  \"labelSource\": \"SEED\",\n  \"confidenceScore\": 0.9412,\n  \"uncertain\": false,\n  \"createdAt\": \"2026-03-22T17:45:00\",\n  \"updatedAt\": \"2026-03-22T17:45:00\"\n}"
+            },
+            {
+              "name": "201 — Classified (uncertain, CLAUDE label)",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 43,\n  \"reviewText\": \"It was... fine I suppose. Not terrible, not great.\",\n  \"label\": \"NEGATIVE\",\n  \"labelSource\": \"CLAUDE\",\n  \"confidenceScore\": 0.5312,\n  \"uncertain\": true,\n  \"createdAt\": \"2026-03-22T17:46:00\",\n  \"updatedAt\": \"2026-03-22T17:46:00\"\n}"
+            },
+            {
+              "name": "400 — VALIDATION_ERROR (blank text)",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 400,\n  \"httpStatusText\": \"Bad Request\",\n  \"errorCode\": \"VALIDATION_ERROR\",\n  \"message\": \"Review text must not be blank\"\n}"
+            },
+            {
+              "name": "409 — REVIEW_ALREADY_EXISTS (duplicate)",
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 409,\n  \"httpStatusText\": \"Conflict\",\n  \"errorCode\": \"REVIEW_ALREADY_EXISTS\",\n  \"message\": \"A review sample with the same text already exists.\"\n}"
+            },
+            {
+              "name": "409 — MODEL_NOT_TRAINED (no model yet)",
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 409,\n  \"httpStatusText\": \"Conflict\",\n  \"errorCode\": \"MODEL_NOT_TRAINED\",\n  \"message\": \"The model has not been trained yet. Please submit labelled samples and trigger a training run first.\"\n}"
+            },
+            {
+              "name": "502 — CLAUDE_API_UNAVAILABLE (oracle down)",
+              "status": "Bad Gateway",
+              "code": 502,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 502,\n  \"httpStatusText\": \"Bad Gateway\",\n  \"errorCode\": \"CLAUDE_API_UNAVAILABLE\",\n  \"message\": \"Claude API call failed: connection timed out.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List All Reviews",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/reviews", "host": ["{{baseUrl}}"], "path": ["api", "reviews"] },
+            "description": "Returns all review samples in the system regardless of labelling status. Returns an empty array `[]` if no reviews exist — this is the correct REST behaviour for an empty collection."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "console.log('[SAL] Total reviews in system:', pm.response.json().length);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Reviews retrieved",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[\n  {\n    \"id\": 42,\n    \"reviewText\": \"An absolute masterpiece. The performances were outstanding.\",\n    \"label\": \"POSITIVE\",\n    \"labelSource\": \"CLAUDE\",\n    \"createdAt\": \"2026-03-21T17:45:00\",\n    \"updatedAt\": \"2026-03-21T18:02:00\"\n  },\n  {\n    \"id\": 43,\n    \"reviewText\": \"Dreadful from beginning to end.\",\n    \"label\": \"NEGATIVE\",\n    \"labelSource\": \"MANUAL\",\n    \"createdAt\": \"2026-03-21T17:47:00\",\n    \"updatedAt\": \"2026-03-21T17:52:00\"\n  }\n]"
+            },
+            {
+              "name": "200 — Empty database",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[]"
+            }
+          ]
+        },
+
+        {
+          "name": "List Labelled Reviews",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/reviews/labelled", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "labelled"] },
+            "description": "Returns only reviews that have been assigned a sentiment label (SEED, MANUAL or CLAUDE). These are the samples used for model training."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('All returned reviews are labelled', () => {",
+                  "    pm.response.json().forEach(r => {",
+                  "        pm.expect(r.label).to.not.be.null;",
+                  "        pm.expect(r.label).to.not.be.undefined;",
+                  "    });",
+                  "});",
+                  "console.log('[SAL] Labelled reviews:', pm.response.json().length);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Labelled reviews retrieved",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[\n  {\n    \"id\": 42,\n    \"reviewText\": \"An absolute masterpiece.\",\n    \"label\": \"POSITIVE\",\n    \"labelSource\": \"CLAUDE\",\n    \"createdAt\": \"2026-03-21T17:45:00\",\n    \"updatedAt\": \"2026-03-21T18:02:00\"\n  }\n]"
+            }
+          ]
+        },
+
+        {
+          "name": "List Unlabelled Reviews",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/reviews/unlabelled", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "unlabelled"] },
+            "description": "Returns only reviews that have not yet been assigned a label. These are awaiting classification or manual labelling."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('All returned reviews are unlabelled', () => {",
+                  "    pm.response.json().forEach(r => {",
+                  "        pm.expect(r.label).to.be.oneOf([null, undefined]);",
+                  "    });",
+                  "});",
+                  "console.log('[SAL] Unlabelled reviews:', pm.response.json().length);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Unlabelled reviews retrieved",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[\n  {\n    \"id\": 55,\n    \"reviewText\": \"An interesting but flawed attempt.\",\n    \"label\": null,\n    \"labelSource\": null,\n    \"createdAt\": \"2026-03-22T09:10:00\",\n    \"updatedAt\": \"2026-03-22T09:10:00\"\n  }\n]"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Review by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/reviews/{{lastReviewId}}", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "{{lastReviewId}}"] },
+            "description": "Returns the review sample with the given ID. Uses `{{lastReviewId}}` which is automatically populated by the Submit Review request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has expected structure', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('reviewText');",
+                  "    pm.expect(json).to.have.property('createdAt');",
+                  "    pm.expect(json).to.have.property('updatedAt');",
+                  "});",
+                  "pm.test('Returned ID matches requested ID', () => {",
+                  "    const json = pm.response.json();",
+                  "    const requestedId = parseInt(pm.collectionVariables.get('lastReviewId'));",
+                  "    pm.expect(json.id).to.equal(requestedId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Review found",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 42,\n  \"reviewText\": \"An absolute masterpiece. The performances were outstanding.\",\n  \"label\": \"POSITIVE\",\n  \"labelSource\": \"CLAUDE\",\n  \"createdAt\": \"2026-03-21T17:45:00\",\n  \"updatedAt\": \"2026-03-21T18:02:00\"\n}"
+            },
+            {
+              "name": "404 — REVIEW_NOT_FOUND",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 404,\n  \"httpStatusText\": \"Not Found\",\n  \"errorCode\": \"REVIEW_NOT_FOUND\",\n  \"message\": \"Review sample with ID 99999 was not found.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Manually Assign Label",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/reviews/{{lastReviewId}}/label", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "{{lastReviewId}}", "label"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"POSITIVE\"\n}"
+            },
+            "description": "Manually assigns a POSITIVE or NEGATIVE label to the specified review. Stored with `labelSource: MANUAL` — the highest-quality training signal. Overrides any existing label."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Label is MANUAL', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.labelSource).to.equal('MANUAL');",
+                  "});",
+                  "pm.test('Label value matches request', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.label).to.equal('POSITIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Label applied",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 42,\n  \"reviewText\": \"An absolute masterpiece.\",\n  \"label\": \"POSITIVE\",\n  \"labelSource\": \"MANUAL\",\n  \"createdAt\": \"2026-03-21T17:45:00\",\n  \"updatedAt\": \"2026-03-22T10:15:00\"\n}"
+            },
+            {
+              "name": "400 — VALIDATION_ERROR (null label)",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 400,\n  \"httpStatusText\": \"Bad Request\",\n  \"errorCode\": \"VALIDATION_ERROR\",\n  \"message\": \"Label must not be null. Accepted values: POSITIVE, NEGATIVE\"\n}"
+            },
+            {
+              "name": "404 — REVIEW_NOT_FOUND",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 404,\n  \"httpStatusText\": \"Not Found\",\n  \"errorCode\": \"REVIEW_NOT_FOUND\",\n  \"message\": \"Review sample with ID 99999 was not found.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Submit Prediction Feedback",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/reviews/{{lastReviewId}}/feedback", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "{{lastReviewId}}", "feedback"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correctedLabel\": \"NEGATIVE\",\n  \"feedbackNote\": \"The model missed the sarcastic tone — the review is clearly negative despite positive surface language.\"\n}"
+            },
+            "description": "Corrects a wrong model prediction. The corrected label is stored with `labelSource: MANUAL` and feeds directly into the next retraining cycle. The optional `feedbackNote` is logged for diagnostics."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Corrected label is MANUAL', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.labelSource).to.equal('MANUAL');",
+                  "});",
+                  "pm.test('Corrected label value matches request', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.label).to.equal('NEGATIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Correction applied",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 42,\n  \"reviewText\": \"Oh sure, absolutely wonderful if you enjoy watching paint dry.\",\n  \"label\": \"NEGATIVE\",\n  \"labelSource\": \"MANUAL\",\n  \"createdAt\": \"2026-03-22T09:00:00\",\n  \"updatedAt\": \"2026-03-22T11:30:00\"\n}"
+            },
+            {
+              "name": "400 — VALIDATION_ERROR (null corrected label)",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 400,\n  \"httpStatusText\": \"Bad Request\",\n  \"errorCode\": \"VALIDATION_ERROR\",\n  \"message\": \"Corrected label must not be null. Accepted values: POSITIVE, NEGATIVE\"\n}"
+            },
+            {
+              "name": "400 — VALIDATION_ERROR (feedback note too long)",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 400,\n  \"httpStatusText\": \"Bad Request\",\n  \"errorCode\": \"VALIDATION_ERROR\",\n  \"message\": \"Feedback note must not exceed 500 characters\"\n}"
+            },
+            {
+              "name": "404 — REVIEW_NOT_FOUND",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 404,\n  \"httpStatusText\": \"Not Found\",\n  \"errorCode\": \"REVIEW_NOT_FOUND\",\n  \"message\": \"Review sample with ID 99999 was not found.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "🤖 Model",
+      "description": "Endpoints for triggering training runs, querying model health statistics, and monitoring the active-learning cycle.",
+      "item": [
+
+        {
+          "name": "Trigger Manual Training Run",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/model/train", "host": ["{{baseUrl}}"], "path": ["api", "model", "train"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"forceRetrain\": false,\n  \"note\": \"Manual training run triggered via Postman.\"\n}"
+            },
+            "description": "Triggers an immediate training run on all currently labelled samples. Under normal operation, retraining is triggered automatically by the active-learning cycle. Use this after bulk-importing seed data.\n\nSet `forceRetrain: true` to bypass the minimum sample threshold check."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has training metrics', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('trainedAt');",
+                  "    pm.expect(json).to.have.property('samplesUsed');",
+                  "    pm.expect(json).to.have.property('accuracyScore');",
+                  "    pm.expect(json).to.have.property('modelSavedToDisk');",
+                  "});",
+                  "pm.test('Accuracy score is between 0 and 1', () => {",
+                  "    pm.expect(pm.response.json().accuracyScore).to.be.within(0, 1);",
+                  "});",
+                  "console.log('[SAL] Training complete. Accuracy:', pm.response.json().accuracyScore);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Training completed",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"trainedAt\": \"2026-03-22T16:00:00\",\n  \"samplesUsed\": 20,\n  \"positiveCount\": 10,\n  \"negativeCount\": 10,\n  \"accuracyScore\": 0.85,\n  \"precisionScore\": 0.86,\n  \"recallScore\": 0.84,\n  \"modelSavedToDisk\": true,\n  \"modelStoragePath\": \"./model/sentiment-model.ser\",\n  \"note\": \"Manual training run triggered via Postman.\"\n}"
+            },
+            {
+              "name": "409 — INSUFFICIENT_TRAINING_DATA",
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"httpStatus\": 409,\n  \"httpStatusText\": \"Conflict\",\n  \"errorCode\": \"INSUFFICIENT_TRAINING_DATA\",\n  \"message\": \"Insufficient labelled samples for training. Required: 20, available: 5. Submit more labelled reviews or set forceRetrain=true.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Trigger Training — Force Retrain",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/model/train", "host": ["{{baseUrl}}"], "path": ["api", "model", "train"] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"forceRetrain\": true,\n  \"note\": \"Force retrain bypassing minimum sample threshold.\"\n}"
+            },
+            "description": "Forces a training run even if the minimum sample count has not been reached. Useful for development and testing with small datasets."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Force retrain succeeded', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('trainedAt');",
+                  "    pm.expect(json.samplesUsed).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Force training completed",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"trainedAt\": \"2026-03-22T16:05:00\",\n  \"samplesUsed\": 5,\n  \"positiveCount\": 3,\n  \"negativeCount\": 2,\n  \"accuracyScore\": 0.60,\n  \"precisionScore\": 0.62,\n  \"recallScore\": 0.58,\n  \"modelSavedToDisk\": true,\n  \"modelStoragePath\": \"./model/sentiment-model.ser\",\n  \"note\": \"Force retrain bypassing minimum sample threshold.\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Model Statistics",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/model/stats", "host": ["{{baseUrl}}"], "path": ["api", "model", "stats"] },
+            "description": "Returns a snapshot combining live corpus counts from the database with historical evaluation metrics from the most recent training run. If untrained, historical metrics are zero."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has required fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('trained');",
+                  "    pm.expect(json).to.have.property('totalLabelled');",
+                  "    pm.expect(json).to.have.property('positiveCount');",
+                  "    pm.expect(json).to.have.property('negativeCount');",
+                  "    pm.expect(json).to.have.property('accuracyLastRun');",
+                  "    pm.expect(json).to.have.property('retrainBatchSize');",
+                  "});",
+                  "pm.test('trained is a boolean', () => {",
+                  "    pm.expect(pm.response.json().trained).to.be.a('boolean');",
+                  "});",
+                  "const stats = pm.response.json();",
+                  "console.log('[SAL] Model trained:', stats.trained, '| Total labelled:', stats.totalLabelled, '| Accuracy:', stats.accuracyLastRun);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Model statistics (trained)",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"trained\": true,\n  \"lastTrainedAt\": \"2026-03-22T16:00:00\",\n  \"samplesUsedInLastRun\": 20,\n  \"totalLabelled\": 22,\n  \"positiveCount\": 11,\n  \"negativeCount\": 11,\n  \"seedLabelledCount\": 18,\n  \"manualLabelledCount\": 2,\n  \"claudeLabelledCount\": 2,\n  \"accuracyLastRun\": 0.85,\n  \"retrainBatchSize\": 10,\n  \"retrainBatchProgress\": 2\n}"
+            },
+            {
+              "name": "200 — Model statistics (untrained)",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"trained\": false,\n  \"lastTrainedAt\": null,\n  \"samplesUsedInLastRun\": 0,\n  \"totalLabelled\": 0,\n  \"positiveCount\": 0,\n  \"negativeCount\": 0,\n  \"seedLabelledCount\": 0,\n  \"manualLabelledCount\": 0,\n  \"claudeLabelledCount\": 0,\n  \"accuracyLastRun\": 0.0,\n  \"retrainBatchSize\": 10,\n  \"retrainBatchProgress\": 0\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get Active Learning Status",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/model/active-learning-status", "host": ["{{baseUrl}}"], "path": ["api", "model", "active-learning-status"] },
+            "description": "Returns the current state of the active-learning cycle: progress towards the next automatic retrain, total completed retraining runs, number of unlabelled reviews awaiting labelling, and model file health."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has cycle fields', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('cycleActive');",
+                  "    pm.expect(json).to.have.property('totalRetrainingRuns');",
+                  "    pm.expect(json).to.have.property('claudeLabelledSinceLastRetrain');",
+                  "    pm.expect(json).to.have.property('retrainBatchSize');",
+                  "    pm.expect(json).to.have.property('progressPercent');",
+                  "    pm.expect(json).to.have.property('modelFileExists');",
+                  "});",
+                  "pm.test('Progress percent is between 0 and 100', () => {",
+                  "    pm.expect(pm.response.json().progressPercent).to.be.within(0, 100);",
+                  "});",
+                  "const status = pm.response.json();",
+                  "console.log('[SAL] Cycle active:', status.cycleActive, '| Retraining runs:', status.totalRetrainingRuns, '| Progress:', status.progressPercent + '%');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Cycle active",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cycleActive\": true,\n  \"totalRetrainingRuns\": 3,\n  \"lastRetrainedAt\": \"2026-03-22T16:00:00\",\n  \"claudeLabelledSinceLastRetrain\": 7,\n  \"retrainBatchSize\": 10,\n  \"progressPercent\": 70,\n  \"totalUnlabelled\": 4,\n  \"modelStoragePath\": \"./model/sentiment-model.ser\",\n  \"modelFileExists\": true\n}"
+            },
+            {
+              "name": "200 — Cycle inactive (untrained)",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cycleActive\": false,\n  \"totalRetrainingRuns\": 0,\n  \"lastRetrainedAt\": null,\n  \"claudeLabelledSinceLastRetrain\": 0,\n  \"retrainBatchSize\": 10,\n  \"progressPercent\": 0,\n  \"totalUnlabelled\": 0,\n  \"modelStoragePath\": \"./model/sentiment-model.ser\",\n  \"modelFileExists\": false\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
