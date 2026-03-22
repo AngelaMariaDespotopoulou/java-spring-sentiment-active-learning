@@ -1,0 +1,53 @@
+{
+  "_description": "Response body returned by POST /api/reviews — the result of a sentiment classification operation. Extends ReviewSampleResponse with two additional fields: confidenceScore and uncertain.",
+  "_notes": {
+    "confidenceScore": "The Naive Bayes model's probability score for the winning label. Between 0.0 and 1.0. A score below the configured uncertaintyThreshold (default 0.65) triggers Claude oracle consultation.",
+    "uncertain": "True when confidenceScore was below the uncertaintyThreshold and the Claude AI oracle was consulted. The label in this case comes from Claude, not the model directly.",
+    "labelSource": "SEED when the model was confident (uncertain=false). CLAUDE when the oracle was consulted (uncertain=true)."
+  },
+
+  "_variant_confident_positive": {
+    "_comment": "Model classified confidently as POSITIVE — no oracle consultation. labelSource is SEED.",
+    "id": 42,
+    "reviewText": "An absolute masterpiece. The performances were outstanding and the storyline kept me gripped from start to finish.",
+    "label": "POSITIVE",
+    "labelSource": "SEED",
+    "confidenceScore": 0.9412,
+    "uncertain": false,
+    "createdAt": "2026-03-22T17:45:00",
+    "updatedAt": "2026-03-22T17:45:00"
+  },
+
+  "_variant_confident_negative": {
+    "_comment": "Model classified confidently as NEGATIVE — no oracle consultation. labelSource is SEED.",
+    "id": 43,
+    "reviewText": "Dreadful from beginning to end. I cannot believe this film received any praise whatsoever.",
+    "label": "NEGATIVE",
+    "labelSource": "SEED",
+    "confidenceScore": 0.8834,
+    "uncertain": false,
+    "createdAt": "2026-03-22T17:46:00",
+    "updatedAt": "2026-03-22T17:46:00"
+  },
+
+  "_variant_uncertain_oracle_consulted": {
+    "_comment": "Model was uncertain (score below threshold). Claude oracle was consulted. labelSource is CLAUDE.",
+    "id": 44,
+    "reviewText": "It was... fine I suppose. Not terrible, but hardly the masterpiece the critics claimed.",
+    "label": "NEGATIVE",
+    "labelSource": "CLAUDE",
+    "confidenceScore": 0.5312,
+    "uncertain": true,
+    "createdAt": "2026-03-22T17:47:00",
+    "updatedAt": "2026-03-22T17:47:00"
+  },
+
+  "id": 42,
+  "reviewText": "An absolute masterpiece. The performances were outstanding and the storyline kept me gripped from start to finish.",
+  "label": "POSITIVE",
+  "labelSource": "SEED",
+  "confidenceScore": 0.9412,
+  "uncertain": false,
+  "createdAt": "2026-03-22T17:45:00",
+  "updatedAt": "2026-03-22T17:45:00"
+}

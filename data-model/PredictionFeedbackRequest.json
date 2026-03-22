@@ -1,0 +1,9 @@
+{
+  "_description": "Request body for POST /api/reviews/{id}/feedback — corrects a wrong model prediction.",
+  "_constraints": {
+    "correctedLabel": "Required. Enum: POSITIVE | NEGATIVE.",
+    "feedbackNote": "Optional. Maximum 500 characters. Logged for diagnostics, not persisted to the database."
+  },
+  "correctedLabel": "NEGATIVE",
+  "feedbackNote": "The model missed the sarcastic tone — this review uses positive vocabulary ironically. The sentence 'Absolutely riveting, if you enjoy watching paint dry' is clearly negative despite containing the word 'riveting'."
+}

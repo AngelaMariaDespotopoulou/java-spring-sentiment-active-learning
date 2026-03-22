@@ -1,0 +1,102 @@
+{
+  "_description": "Error envelope returned for ALL non-2xx API responses. Every error in the system — validation failures, missing resources, business rule conflicts, upstream failures — is expressed in this single uniform structure.",
+  "_notes": {
+    "httpStatus": "Numeric HTTP status code. Matches the actual HTTP response status.",
+    "httpStatusText": "Standard HTTP reason phrase for the status code.",
+    "errorCode": "Stable machine-readable identifier. Use this in client code for error branching — never match on the message string as it may change.",
+    "message": "Human-readable description. May include dynamic context (e.g. the ID that was not found). Safe to display to end users."
+  },
+
+  "_variant_400_VALIDATION_ERROR": {
+    "_comment": "A request field failed bean validation — blank, too long, wrong format, etc.",
+    "httpStatus": 400,
+    "httpStatusText": "Bad Request",
+    "errorCode": "VALIDATION_ERROR",
+    "message": "Review text must not be blank"
+  },
+
+  "_variant_400_VALIDATION_ERROR_too_long": {
+    "_comment": "Review text exceeded the 5000-character limit.",
+    "httpStatus": 400,
+    "httpStatusText": "Bad Request",
+    "errorCode": "VALIDATION_ERROR",
+    "message": "Review text must not exceed 5000 characters"
+  },
+
+  "_variant_400_INVALID_FIELD_VALUE": {
+    "_comment": "A field value is syntactically valid but semantically incorrect.",
+    "httpStatus": 400,
+    "httpStatusText": "Bad Request",
+    "errorCode": "INVALID_FIELD_VALUE",
+    "message": "The provided value is not valid for this field."
+  },
+
+  "_variant_400_MALFORMED_REQUEST": {
+    "_comment": "The request body could not be parsed — invalid JSON syntax or missing Content-Type header.",
+    "httpStatus": 400,
+    "httpStatusText": "Bad Request",
+    "errorCode": "MALFORMED_REQUEST",
+    "message": "The request body could not be parsed. Please check the JSON syntax and content type."
+  },
+
+  "_variant_404_REVIEW_NOT_FOUND": {
+    "_comment": "No review sample exists for the given ID.",
+    "httpStatus": 404,
+    "httpStatusText": "Not Found",
+    "errorCode": "REVIEW_NOT_FOUND",
+    "message": "Review sample with ID 42 was not found."
+  },
+
+  "_variant_409_REVIEW_ALREADY_EXISTS": {
+    "_comment": "A review with the same text already exists in the database (unique constraint on reviewText).",
+    "httpStatus": 409,
+    "httpStatusText": "Conflict",
+    "errorCode": "REVIEW_ALREADY_EXISTS",
+    "message": "A review sample with the same text already exists."
+  },
+
+  "_variant_409_MODEL_NOT_TRAINED": {
+    "_comment": "A classification was requested but no trained model is available yet. Train the model first.",
+    "httpStatus": 409,
+    "httpStatusText": "Conflict",
+    "errorCode": "MODEL_NOT_TRAINED",
+    "message": "The model has not been trained yet. Please submit labelled samples and trigger a training run first."
+  },
+
+  "_variant_409_INSUFFICIENT_TRAINING_DATA": {
+    "_comment": "A training run was requested but fewer labelled samples exist than the configured minimum.",
+    "httpStatus": 409,
+    "httpStatusText": "Conflict",
+    "errorCode": "INSUFFICIENT_TRAINING_DATA",
+    "message": "Insufficient labelled samples for training. Required: 20, available: 5. Submit more labelled reviews or set forceRetrain=true."
+  },
+
+  "_variant_502_CLAUDE_API_UNAVAILABLE": {
+    "_comment": "The outbound call to the Anthropic Claude API failed due to a network error or timeout.",
+    "httpStatus": 502,
+    "httpStatusText": "Bad Gateway",
+    "errorCode": "CLAUDE_API_UNAVAILABLE",
+    "message": "Claude API call failed: connection timed out."
+  },
+
+  "_variant_502_CLAUDE_RESPONSE_INVALID": {
+    "_comment": "Claude returned a response that could not be parsed into POSITIVE or NEGATIVE.",
+    "httpStatus": 502,
+    "httpStatusText": "Bad Gateway",
+    "errorCode": "CLAUDE_RESPONSE_INVALID",
+    "message": "Claude returned an unrecognised sentiment label: 'Neutral'. Expected POSITIVE or NEGATIVE."
+  },
+
+  "_variant_500_INTERNAL_ERROR": {
+    "_comment": "An unexpected server-side error. Details are logged server-side but intentionally not exposed to the client.",
+    "httpStatus": 500,
+    "httpStatusText": "Internal Server Error",
+    "errorCode": "INTERNAL_ERROR",
+    "message": "An unexpected error occurred. Please try again later or contact support."
+  },
+
+  "httpStatus": 404,
+  "httpStatusText": "Not Found",
+  "errorCode": "REVIEW_NOT_FOUND",
+  "message": "Review sample with ID 42 was not found."
+}

@@ -1,0 +1,26 @@
+{
+  "_description": "Request body for POST /api/model/train — triggers a manual model training run. An empty body is also accepted; all fields have defaults.",
+  "_constraints": {
+    "forceRetrain": "Optional. Boolean. Default: false. If true, bypasses the minimum sample threshold (active-learning.min-training-samples). Use with caution on small datasets.",
+    "note": "Optional. Free-text audit note. Logged alongside the training run, not persisted to the database."
+  },
+
+  "_variant_normal": {
+    "_comment": "Standard training run — respects the minimum sample threshold.",
+    "forceRetrain": false,
+    "note": "Manual retrain after bulk seed data import."
+  },
+
+  "_variant_force": {
+    "_comment": "Force retrain — bypasses minimum threshold. Useful for development with small datasets.",
+    "forceRetrain": true,
+    "note": "Force retrain for development testing with limited seed data."
+  },
+
+  "_variant_empty_body": {
+    "_comment": "An empty body is also valid. Both fields default: forceRetrain=false, note=null."
+  },
+
+  "forceRetrain": false,
+  "note": "Manual retrain after bulk seed data import."
+}

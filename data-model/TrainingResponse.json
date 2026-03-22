@@ -1,0 +1,65 @@
+{
+  "_description": "Response body returned by POST /api/model/train — summarises the completed training run including corpus statistics, evaluation metrics, and persistence status.",
+  "_notes": {
+    "samplesUsed": "Total labelled samples across both training and hold-out sets. The model is trained on 80% of these; 20% are held back for evaluation.",
+    "accuracyScore": "Fraction of hold-out examples the model labelled correctly. Between 0.0 and 1.0.",
+    "precisionScore": "Macro-averaged precision across POSITIVE and NEGATIVE classes on the hold-out set.",
+    "recallScore": "Macro-averaged recall across POSITIVE and NEGATIVE classes on the hold-out set.",
+    "modelSavedToDisk": "False if the model file could not be written (e.g. disk full, permission error). The model is still available in memory for classification in the current session.",
+    "modelStoragePath": "Null if modelSavedToDisk is false.",
+    "note": "Echoes back the note from the original TrainingRequest, if one was supplied."
+  },
+
+  "_variant_successful_with_good_metrics": {
+    "_comment": "A healthy training run on a well-balanced corpus of 165 samples.",
+    "trainedAt": "2026-03-22T16:00:00",
+    "samplesUsed": 165,
+    "positiveCount": 89,
+    "negativeCount": 76,
+    "accuracyScore": 0.91,
+    "precisionScore": 0.89,
+    "recallScore": 0.93,
+    "modelSavedToDisk": true,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "note": "Manual retrain after bulk seed data import."
+  },
+
+  "_variant_force_retrain_small_dataset": {
+    "_comment": "Force retrain on a very small dataset — metrics are lower and less reliable.",
+    "trainedAt": "2026-03-22T16:05:00",
+    "samplesUsed": 5,
+    "positiveCount": 3,
+    "negativeCount": 2,
+    "accuracyScore": 0.60,
+    "precisionScore": 0.62,
+    "recallScore": 0.58,
+    "modelSavedToDisk": true,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "note": "Force retrain for development testing with limited seed data."
+  },
+
+  "_variant_disk_save_failed": {
+    "_comment": "Training succeeded but the model could not be saved to disk. Model is available in memory only.",
+    "trainedAt": "2026-03-22T16:10:00",
+    "samplesUsed": 165,
+    "positiveCount": 89,
+    "negativeCount": 76,
+    "accuracyScore": 0.91,
+    "precisionScore": 0.89,
+    "recallScore": 0.93,
+    "modelSavedToDisk": false,
+    "modelStoragePath": null,
+    "note": null
+  },
+
+  "trainedAt": "2026-03-22T16:00:00",
+  "samplesUsed": 165,
+  "positiveCount": 89,
+  "negativeCount": 76,
+  "accuracyScore": 0.91,
+  "precisionScore": 0.89,
+  "recallScore": 0.93,
+  "modelSavedToDisk": true,
+  "modelStoragePath": "./model/sentiment-model.ser",
+  "note": "Manual retrain after bulk seed data import."
+}

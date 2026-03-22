@@ -1,0 +1,56 @@
+{
+  "_description": "Response body returned by GET /api/reviews, GET /api/reviews/{id}, GET /api/reviews/labelled, GET /api/reviews/unlabelled, PATCH /api/reviews/{id}/label, and POST /api/reviews/{id}/feedback.",
+  "_notes": {
+    "label": "Null if the review has not yet been classified.",
+    "labelSource": "Null if the review has not yet been classified. SEED = model-confident auto-label, MANUAL = human operator, CLAUDE = Claude AI oracle.",
+    "createdAt": "System-managed. Set on insert. Never changes.",
+    "updatedAt": "System-managed. Updated on every write."
+  },
+
+  "_variant_labelled_by_claude": {
+    "_comment": "A review that was uncertain and labelled by the Claude AI oracle.",
+    "id": 42,
+    "reviewText": "An absolute masterpiece. The performances were outstanding and the storyline kept me gripped.",
+    "label": "POSITIVE",
+    "labelSource": "CLAUDE",
+    "createdAt": "2026-03-21T17:45:00",
+    "updatedAt": "2026-03-21T18:02:00"
+  },
+
+  "_variant_labelled_manually": {
+    "_comment": "A review that was corrected by a human operator via the feedback endpoint.",
+    "id": 43,
+    "reviewText": "Oh sure, absolutely riveting if you enjoy watching paint dry for two hours.",
+    "label": "NEGATIVE",
+    "labelSource": "MANUAL",
+    "createdAt": "2026-03-21T17:50:00",
+    "updatedAt": "2026-03-22T09:15:00"
+  },
+
+  "_variant_labelled_by_seed": {
+    "_comment": "A review that the model classified confidently — no oracle consultation needed.",
+    "id": 44,
+    "reviewText": "Dreadful from beginning to end. I cannot believe this film received any praise whatsoever.",
+    "label": "NEGATIVE",
+    "labelSource": "SEED",
+    "createdAt": "2026-03-22T10:00:00",
+    "updatedAt": "2026-03-22T10:00:00"
+  },
+
+  "_variant_unlabelled": {
+    "_comment": "A review that has been submitted but not yet classified (model not trained yet).",
+    "id": 55,
+    "reviewText": "An interesting but deeply flawed attempt at social commentary.",
+    "label": null,
+    "labelSource": null,
+    "createdAt": "2026-03-22T11:30:00",
+    "updatedAt": "2026-03-22T11:30:00"
+  },
+
+  "id": 42,
+  "reviewText": "An absolute masterpiece. The performances were outstanding and the storyline kept me gripped.",
+  "label": "POSITIVE",
+  "labelSource": "CLAUDE",
+  "createdAt": "2026-03-21T17:45:00",
+  "updatedAt": "2026-03-21T18:02:00"
+}

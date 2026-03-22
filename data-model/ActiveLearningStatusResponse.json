@@ -1,0 +1,74 @@
+{
+  "_description": "Response body returned by GET /api/model/active-learning-status — a real-time snapshot of the active-learning cycle state, retrain progress, and model file health.",
+  "_notes": {
+    "cycleActive": "True only when a trained model is available. False on fresh startup or after a catastrophic training failure.",
+    "totalRetrainingRuns": "In-memory counter reset to zero on application restart.",
+    "lastRetrainedAt": "Null if no automatic retraining run has completed since the application started.",
+    "claudeLabelledSinceLastRetrain": "In-memory counter reset to zero after each automatic retraining run. Incremented each time the Claude oracle is consulted.",
+    "progressPercent": "claudeLabelledSinceLastRetrain / retrainBatchSize * 100, capped at 100.",
+    "totalUnlabelled": "Reviews in the database that have no label yet — i.e. submitted before the model was trained.",
+    "modelFileExists": "Checks the filesystem at modelStoragePath at the time of the request."
+  },
+
+  "_variant_cycle_active_midway": {
+    "_comment": "Normal running state — model trained, 70% of the way to next automatic retrain.",
+    "cycleActive": true,
+    "totalRetrainingRuns": 3,
+    "lastRetrainedAt": "2026-03-22T16:00:00",
+    "claudeLabelledSinceLastRetrain": 7,
+    "retrainBatchSize": 10,
+    "progressPercent": 70,
+    "totalUnlabelled": 4,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "modelFileExists": true
+  },
+
+  "_variant_retrain_just_triggered": {
+    "_comment": "Retrain just completed — counter reset to zero, run count incremented.",
+    "cycleActive": true,
+    "totalRetrainingRuns": 4,
+    "lastRetrainedAt": "2026-03-22T18:30:00",
+    "claudeLabelledSinceLastRetrain": 0,
+    "retrainBatchSize": 10,
+    "progressPercent": 0,
+    "totalUnlabelled": 2,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "modelFileExists": true
+  },
+
+  "_variant_untrained_fresh_deployment": {
+    "_comment": "Fresh deployment — no training run completed, cycle not yet active.",
+    "cycleActive": false,
+    "totalRetrainingRuns": 0,
+    "lastRetrainedAt": null,
+    "claudeLabelledSinceLastRetrain": 0,
+    "retrainBatchSize": 10,
+    "progressPercent": 0,
+    "totalUnlabelled": 0,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "modelFileExists": false
+  },
+
+  "_variant_model_file_missing": {
+    "_comment": "Model is trained and in memory, but the .ser file was deleted from disk. The current session works normally but the model will not survive a restart.",
+    "cycleActive": true,
+    "totalRetrainingRuns": 2,
+    "lastRetrainedAt": "2026-03-22T12:00:00",
+    "claudeLabelledSinceLastRetrain": 3,
+    "retrainBatchSize": 10,
+    "progressPercent": 30,
+    "totalUnlabelled": 1,
+    "modelStoragePath": "./model/sentiment-model.ser",
+    "modelFileExists": false
+  },
+
+  "cycleActive": true,
+  "totalRetrainingRuns": 3,
+  "lastRetrainedAt": "2026-03-22T16:00:00",
+  "claudeLabelledSinceLastRetrain": 7,
+  "retrainBatchSize": 10,
+  "progressPercent": 70,
+  "totalUnlabelled": 4,
+  "modelStoragePath": "./model/sentiment-model.ser",
+  "modelFileExists": true
+}

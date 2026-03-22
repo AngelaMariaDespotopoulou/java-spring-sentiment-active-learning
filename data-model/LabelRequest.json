@@ -1,0 +1,7 @@
+{
+  "_description": "Request body for PATCH /api/reviews/{id}/label — manually assigns a sentiment label to a review sample.",
+  "_constraints": {
+    "label": "Required. Enum: POSITIVE | NEGATIVE."
+  },
+  "label": "POSITIVE"
+}

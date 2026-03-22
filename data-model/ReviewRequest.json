@@ -1,0 +1,7 @@
+{
+  "_description": "Request body for POST /api/reviews — submits a movie review for sentiment classification.",
+  "_constraints": {
+    "reviewText": "Required. Non-blank string. Maximum 5000 characters."
+  },
+  "reviewText": "An absolute masterpiece. The performances were outstanding and the storyline kept me completely gripped from the very first scene to the final frame. Rare cinema at its finest."
+}

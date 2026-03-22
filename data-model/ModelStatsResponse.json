@@ -1,0 +1,73 @@
+{
+  "_description": "Response body returned by GET /api/model/stats — combines live corpus counts from the database with historical evaluation metrics from the most recent training run.",
+  "_notes": {
+    "trained": "False on fresh startup before the first training run completes.",
+    "lastTrainedAt": "Null if the model has never been trained.",
+    "samplesUsedInLastRun": "May differ from totalLabelled if new reviews were labelled after the last training run.",
+    "seedLabelledCount": "Samples auto-labelled by the model when its confidence was high (labelSource=SEED).",
+    "manualLabelledCount": "Samples labelled by a human operator via the API (labelSource=MANUAL).",
+    "claudeLabelledCount": "Samples labelled by the Claude AI oracle when the model was uncertain (labelSource=CLAUDE).",
+    "retrainBatchProgress": "Resets to zero after each automatic retraining run. When it reaches retrainBatchSize, a retrain is triggered."
+  },
+
+  "_variant_trained_healthy": {
+    "_comment": "A healthy trained model with a well-balanced corpus.",
+    "trained": true,
+    "lastTrainedAt": "2026-03-22T16:00:00",
+    "samplesUsedInLastRun": 150,
+    "totalLabelled": 165,
+    "positiveCount": 89,
+    "negativeCount": 76,
+    "seedLabelledCount": 50,
+    "manualLabelledCount": 30,
+    "claudeLabelledCount": 85,
+    "accuracyLastRun": 0.91,
+    "retrainBatchSize": 10,
+    "retrainBatchProgress": 7
+  },
+
+  "_variant_untrained": {
+    "_comment": "Fresh deployment — no training run has been completed yet.",
+    "trained": false,
+    "lastTrainedAt": null,
+    "samplesUsedInLastRun": 0,
+    "totalLabelled": 0,
+    "positiveCount": 0,
+    "negativeCount": 0,
+    "seedLabelledCount": 0,
+    "manualLabelledCount": 0,
+    "claudeLabelledCount": 0,
+    "accuracyLastRun": 0.0,
+    "retrainBatchSize": 10,
+    "retrainBatchProgress": 0
+  },
+
+  "_variant_retrain_due": {
+    "_comment": "Model trained, retrainBatchProgress has reached retrainBatchSize — a retrain will trigger on the next uncertain classification.",
+    "trained": true,
+    "lastTrainedAt": "2026-03-22T14:00:00",
+    "samplesUsedInLastRun": 140,
+    "totalLabelled": 155,
+    "positiveCount": 82,
+    "negativeCount": 73,
+    "seedLabelledCount": 48,
+    "manualLabelledCount": 27,
+    "claudeLabelledCount": 80,
+    "accuracyLastRun": 0.88,
+    "retrainBatchSize": 10,
+    "retrainBatchProgress": 10
+  },
+
+  "trained": true,
+  "lastTrainedAt": "2026-03-22T16:00:00",
+  "samplesUsedInLastRun": 150,
+  "totalLabelled": 165,
+  "positiveCount": 89,
+  "negativeCount": 76,
+  "seedLabelledCount": 50,
+  "manualLabelledCount": 30,
+  "claudeLabelledCount": 85,
+  "accuracyLastRun": 0.91,
+  "retrainBatchSize": 10,
+  "retrainBatchProgress": 7
+}
