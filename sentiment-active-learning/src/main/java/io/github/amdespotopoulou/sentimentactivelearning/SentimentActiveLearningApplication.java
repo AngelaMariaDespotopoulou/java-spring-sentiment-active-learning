@@ -23,7 +23,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * </ul>
  *
  * @author Angela-Maria Despotopoulou
- * @see <a href="https://github.com/amdespotopoulou/java-spring-sentiment-active-learning">
+ * @see <a href="https://github.com/AngelaMariaDespotopoulou/java-spring-sentiment-active-learning">
  *      GitHub Repository</a>
  */
 @SpringBootApplication

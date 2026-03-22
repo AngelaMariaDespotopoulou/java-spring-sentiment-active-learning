@@ -1,0 +1,93 @@
+@startuml startup-sequence
+
+title Startup Model Restoration Sequence
+
+skinparam activityBorderColor #444444
+skinparam activityBackgroundColor #F8F8F8
+skinparam activityArrowThickness 2
+skinparam roundcorner 8
+skinparam conditionStyle diamond
+skinparam conditionBorderColor #444444
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFBE6
+
+|TrainingService|
+start
+
+:ApplicationReadyEvent fired;
+note right
+  Spring fires this after the full
+  application context is ready —
+  JPA, datasource, all beans available.
+  Safer than @PostConstruct.
+end note
+
+if (retrainOnStartup == false?) then (yes)
+    :Log: startup restoration disabled;
+    :Start in untrained state;
+    stop
+else (no)
+endif
+
+if (Model file exists\nat modelStoragePath?) then (yes)
+
+    :Read saved sample count\nfrom model file;
+
+    :Query current labelled\nsample count from DB;
+
+    :newLabelsSinceSave =\ncurrent − saved;
+
+    if (newLabelsSinceSave ≥\nstalenessThreshold?) then (yes — stale)
+        note right
+          Too many new labels added
+          since the model was last saved.
+          The saved model no longer
+          reflects the full dataset.
+        end note
+        :Log: model is stale, retraining;
+        ->  attempt initial training;
+    else (no — fresh)
+        :Deserialise model\nfrom disk;
+        :ClassifierService.updateModel();
+        note right
+          Model is ready immediately.
+          No training run needed.
+          Fast startup.
+        end note
+        :Log: model loaded from disk;
+        :Start in TRAINED state;
+        stop
+    endif
+
+else (no)
+    :Log: no model file found;
+    ->  attempt initial training;
+endif
+
+|TrainingService|
+:Count labelled samples in DB;
+
+if (labelledCount ≥\nminTrainingSamples?) then (yes)
+    :Fetch all labelled samples;
+    :Shuffle → 80/20 split;
+    :Build Tribuo MutableDataset;
+    :MultinomialNaiveBayesTrainer.train();
+    :Evaluate on hold-out set\n(accuracy / precision / recall);
+    :ClassifierService.updateModel();
+    :Serialise model to disk;
+    :Log: startup training completed;
+    :Start in TRAINED state;
+    stop
+else (no)
+    note right
+      A fresh deployment with no data
+      is a normal, expected condition.
+      The application starts healthy
+      and waits for labelled reviews.
+    end note
+    :Log WARN: insufficient data,\nstarting in untrained state;
+    :Start in UNTRAINED state\n(classification requests return\nModelNotTrainedException);
+    stop
+endif
+
+@enduml

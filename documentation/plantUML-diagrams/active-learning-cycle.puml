@@ -1,0 +1,86 @@
+@startuml active-learning-cycle
+
+title Active Learning Cycle — Review Submission Flow
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #444444
+skinparam sequenceParticipantBackgroundColor #F8F8F8
+skinparam sequenceLifeLineBorderColor #AAAAAA
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFBE6
+skinparam sequenceGroupBorderColor #888888
+skinparam sequenceGroupBackgroundColor #F0F0F0
+skinparam sequenceGroupFontStyle bold
+
+actor       "API Client"              as client
+participant "ReviewController"        as ctrl
+participant "ActiveLearningService"   as als
+participant "ReviewSampleDao"         as dao
+participant "ClassifierService"       as clf
+participant "TrainingService"         as trainer
+participant "ClaudeOracleService"     as oracle
+database    "H2 Database"             as db
+entity      "Anthropic Claude API"    as claude
+
+== Review Submission ==
+
+client  ->  ctrl    : POST /api/reviews\n{ reviewText }
+ctrl    ->  als     : submitReview(request)
+als     ->  dao     : save(ReviewSample)
+dao     ->  db      : INSERT review_sample
+db      -->  dao    : id assigned
+dao     -->  als    : saved ReviewSample
+
+== Classification ==
+
+als     ->  clf     : classify(reviewText)
+clf     ->  clf     : extract bag-of-words features\n(UniversalTokenizer + BasicPipeline)
+clf     ->  clf     : model.predict(example)
+
+alt Confident prediction (score ≥ uncertaintyThreshold)
+    clf  -->  als   : ClassificationResult\n(label, score, uncertain=false)
+    als  ->  dao    : update(label=MODEL, source=SEED)
+    dao  ->  db     : UPDATE review_sample
+    als  -->  ctrl  : ClassifyResponse (uncertain=false)
+    ctrl -->  client : 201 Created\n{ label, confidenceScore, uncertain=false }
+
+else Uncertain prediction (score < uncertaintyThreshold)
+    clf  -->  als   : ClassificationResult\n(label, score, uncertain=true)
+
+    == Claude Oracle Consultation ==
+
+    als  ->  oracle  : label(reviewText)
+    oracle -> claude : POST /v1/messages\n{ system prompt, reviewText }
+    claude --> oracle : "POSITIVE" or "NEGATIVE"
+    oracle --> als   : SentimentLabel
+
+    als  ->  dao    : update(label=CLAUDE, source=CLAUDE)
+    dao  ->  db     : UPDATE review_sample
+    als  ->  als    : claudeLabelledSinceLastRetrain++
+
+    alt Batch threshold NOT yet reached
+        als  -->  ctrl  : ClassifyResponse (uncertain=true)
+        ctrl -->  client : 201 Created\n{ label, confidenceScore, uncertain=true }
+
+    else Batch threshold reached
+        note over als : claudeLabelledSinceLastRetrain\n≥ retrainBatchSize
+
+        == Automatic Retraining ==
+
+        als  ->  als    : reset counter to 0
+        als  ->  trainer : train(TrainingRequest)
+        trainer ->  db  : SELECT all labelled samples
+        db  --> trainer : List<ReviewSample>
+        trainer ->  trainer : shuffle → 80/20 split\nbuild MutableDataset\nMultinomialNaiveBayesTrainer.train()
+        trainer ->  trainer : LabelEvaluator.evaluate()\naccuracy / precision / recall
+        trainer ->  clf  : updateModel(newModel)
+        trainer ->  trainer : saveModelToDisk()
+        trainer -->  als : TrainingResponse
+        als  ->  als    : totalRetrainingRuns++\nlastRetrainedAt = now()
+        als  -->  ctrl  : ClassifyResponse (uncertain=true)
+        ctrl -->  client : 201 Created\n{ label, confidenceScore, uncertain=true }
+    end
+end
+
+@enduml

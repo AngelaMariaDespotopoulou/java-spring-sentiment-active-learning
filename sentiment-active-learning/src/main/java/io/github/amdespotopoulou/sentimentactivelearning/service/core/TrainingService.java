@@ -39,7 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Collections;
 import java.util.List;
 
@@ -124,6 +124,45 @@ public class TrainingService implements ModelTrainer {
     private final Classifier classifier;
 
     // -------------------------------------------------------------------------
+    // Historical state (thread-safe)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Timestamp of the most recent completed training run.
+     * {@code null} until the first training run completes successfully.
+     */
+    private final AtomicReference<LocalDateTime> lastTrainedAt =
+            new AtomicReference<>(null);
+
+    /**
+     * Number of labelled samples used in the most recent training run.
+     * Zero until the first training run completes.
+     */
+    private final AtomicReference<Long> samplesUsedInLastRun =
+            new AtomicReference<>(0L);
+
+    /**
+     * Accuracy score achieved on the hold-out evaluation set during the most
+     * recent training run. Zero until the first training run completes.
+     */
+    private final AtomicReference<Double> accuracyLastRun =
+            new AtomicReference<>(0.0);
+
+    /**
+     * Precision score achieved on the hold-out evaluation set during the most
+     * recent training run. Zero until the first training run completes.
+     */
+    private final AtomicReference<Double> precisionLastRun =
+            new AtomicReference<>(0.0);
+
+    /**
+     * Recall score achieved on the hold-out evaluation set during the most
+     * recent training run. Zero until the first training run completes.
+     */
+    private final AtomicReference<Double> recallLastRun =
+            new AtomicReference<>(0.0);
+
+    // -------------------------------------------------------------------------
     // ModelTrainer interface implementation
     // -------------------------------------------------------------------------
 
@@ -202,6 +241,12 @@ public class TrainingService implements ModelTrainer {
 
         classifier.updateModel(newModel);
 
+        lastTrainedAt.set(LocalDateTime.now());
+        samplesUsedInLastRun.set(labelledCount);
+        accuracyLastRun.set(accuracy);
+        precisionLastRun.set(precision);
+        recallLastRun.set(recall);
+
         boolean savedToDisk = saveModelToDisk(newModel);
 
         long positiveCount = trainSamples.stream()
@@ -224,6 +269,17 @@ public class TrainingService implements ModelTrainer {
                         : null)
                 .note(request.getNote())
                 .build();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public ModelTrainer.LastRunStats getLastRunStats() {
+        return new ModelTrainer.LastRunStats(
+                lastTrainedAt.get(),
+                samplesUsedInLastRun.get(),
+                accuracyLastRun.get(),
+                precisionLastRun.get(),
+                recallLastRun.get());
     }
 
     /**

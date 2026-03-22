@@ -1,0 +1,118 @@
+@startuml entity-model
+
+title Entity Model & Persistence Layer
+
+skinparam classAttributeIconSize 0
+skinparam classBorderColor #444444
+skinparam classBackgroundColor #F8F8F8
+skinparam classArrowThickness 2
+skinparam roundcorner 8
+skinparam packageBorderColor #888888
+skinparam packageFontStyle bold
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFBE6
+
+package "commons.enums" {
+
+    enum SentimentLabel {
+        POSITIVE
+        NEGATIVE
+    }
+
+    enum LabelSource {
+        SEED
+        MANUAL
+        CLAUDE
+    }
+
+    enum ErrorCode {
+        VALIDATION_ERROR
+        INVALID_FIELD_VALUE
+        MALFORMED_REQUEST
+        REVIEW_NOT_FOUND
+        REVIEW_ALREADY_EXISTS
+        MODEL_NOT_TRAINED
+        INSUFFICIENT_TRAINING_DATA
+        CLAUDE_API_UNAVAILABLE
+        CLAUDE_RESPONSE_INVALID
+        INTERNAL_ERROR
+        --
+        - httpStatus : HttpStatus
+        --
+        + getHttpStatus() : HttpStatus
+    }
+}
+
+package "persistence.entity" {
+
+    class ReviewSample {
+        .. Identity ..
+        + id : Long  <<generated>>
+        .. Content ..
+        + reviewText : String  <<unique, max 5000>>
+        .. Classification ..
+        + label : SentimentLabel  <<nullable>>
+        + labelSource : LabelSource  <<nullable>>
+        .. Audit ..
+        + createdAt : LocalDateTime  <<immutable>>
+        + updatedAt : LocalDateTime
+    }
+
+    note bottom of ReviewSample
+      Table: review_sample
+      Unique constraint: uq_review_sample_text
+      Audit managed by: AuditingEntityListener
+      Events logged by: ReviewSampleListener
+    end note
+}
+
+package "persistence.dao" {
+
+    interface ReviewSampleDao {
+        + save(sample) : ReviewSample
+        + update(sample) : ReviewSample
+        + findById(id) : Optional<ReviewSample>
+        + findByReviewText(text) : Optional<ReviewSample>
+        + findAll() : List<ReviewSample>
+        + findAllLabelled() : List<ReviewSample>
+        + findAllUnlabelled() : List<ReviewSample>
+        + findByLabel(label) : List<ReviewSample>
+        + findByLabelSource(source) : List<ReviewSample>
+        + countLabelled() : long
+        + countByLabelSource(source) : long
+        + existsByReviewText(text) : boolean
+    }
+
+    class ReviewSampleDaoImpl {
+        - repository : ReviewSampleRepository
+        --
+        + save(sample) : ReviewSample
+        + update(sample) : ReviewSample
+        + findById(id) : Optional<ReviewSample>
+        + ... delegates all others ...
+    }
+}
+
+package "persistence.repository" {
+
+    interface ReviewSampleRepository <<JpaRepository>> {
+        + existsByReviewText(text) : boolean
+        + findByReviewText(text) : Optional<ReviewSample>
+        + findAllLabelled() : List<ReviewSample>
+        + findAllUnlabelled() : List<ReviewSample>
+        + findByLabelSource(source) : List<ReviewSample>
+        + findByLabel(label) : List<ReviewSample>
+        + countLabelled() : long
+        + countByLabelSource(source) : long
+    }
+}
+
+' Relationships
+ReviewSample  "1" *--  "0..1" SentimentLabel : label
+ReviewSample  "1" *--  "0..1" LabelSource    : labelSource
+
+ReviewSampleDaoImpl ..|>  ReviewSampleDao       : implements
+ReviewSampleDaoImpl  -->  ReviewSampleRepository : delegates to
+ReviewSampleRepository --> ReviewSample          : manages
+
+@enduml

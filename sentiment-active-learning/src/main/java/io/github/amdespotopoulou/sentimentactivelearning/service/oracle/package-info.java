@@ -7,7 +7,12 @@
  *
  * <h2>Contents</h2>
  * <ul>
- *   <li>{@code ClaudeOracleService} — sends a review text to the Claude API,
+ *   <li>{@code ClaudeOracle} — technology-agnostic interface declaring the
+ *       labelling oracle contract. The active-learning pipeline depends on this
+ *       interface rather than the concrete implementation, enabling stub
+ *       injection during unit testing without a real API key.</li>
+ *   <li>{@code ClaudeOracleService} — production implementation of
+ *       {@code ClaudeOracle}. Sends a review text to the Claude API,
  *       parses the {@code POSITIVE} / {@code NEGATIVE} label from the response,
  *       and returns it as a
  *       {@link io.github.amdespotopoulou.sentimentactivelearning.commons.enums.SentimentLabel}.

@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +31,9 @@ import java.util.stream.Collectors;
  *   <li>{@link HttpMessageNotReadableException} — malformed or unparseable
  *       request body; returns 400.</li>
  *   <li>{@link ResourceNotFoundException} — missing resource; returns 404.</li>
+ *   <li>{@link org.springframework.web.servlet.resource.NoResourceFoundException}
+ *       — missing static resource (e.g. favicon.ico requested by a browser);
+ *       returns 404 silently at DEBUG level — not an application error.</li>
  *   <li>{@link ResourceConflictException} — state or uniqueness conflict;
  *       returns 409. Also catches its subclass
  *       {@link ModelNotTrainedException}.</li>
@@ -133,6 +138,29 @@ public class GlobalExceptionHandler {
         log.warn("Resource not found [{}]: {}", ex.getErrorCode(), ex.getMessage());
 
         return buildResponse(ApiErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    /**
+     * Handles Spring MVC's internal {@link NoResourceFoundException}.
+     *
+     * <p>Thrown by Spring when a request targets a static resource path that
+     * does not exist — for example, {@code /favicon.ico} or any unmatched
+     * static asset requested by a browser. This is normal browser behaviour
+     * and must not be treated as an application error. Logged at {@code DEBUG}
+     * level only — not at {@code WARN} or {@code ERROR}.
+     *
+     * @param ex the {@link NoResourceFoundException} raised by Spring MVC
+     * @return a 404 response
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(
+            NoResourceFoundException ex) {
+
+        log.debug("Static resource not found: {}", ex.getMessage());
+
+        return buildResponse(ApiErrorResponse.of(
+                ErrorCode.REVIEW_NOT_FOUND,
+                "The requested resource was not found."));
     }
 
     // -------------------------------------------------------------------------

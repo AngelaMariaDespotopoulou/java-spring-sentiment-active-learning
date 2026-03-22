@@ -63,6 +63,42 @@ public interface ModelTrainer {
     TrainingResponse train(TrainingRequest request);
 
     /**
+     * Returns a snapshot of statistics from the most recent completed
+     * training run.
+     *
+     * <p>All metrics are zero or {@code null} until the first training run
+     * completes successfully.
+     *
+     * @return a {@link LastRunStats} record containing historical metrics;
+     *         never {@code null}
+     */
+    LastRunStats getLastRunStats();
+
+    // -------------------------------------------------------------------------
+    // Stats record
+    // -------------------------------------------------------------------------
+
+    /**
+     * Immutable snapshot of metrics from the most recent training run.
+     *
+     * @param lastTrainedAt       timestamp of the most recent training run,
+     *                            or {@code null} if no run has completed yet
+     * @param samplesUsedInLastRun number of labelled samples used
+     * @param accuracyLastRun      accuracy on the hold-out set (0.0-1.0)
+     * @param precisionLastRun     precision on the hold-out set (0.0-1.0)
+     * @param recallLastRun        recall on the hold-out set (0.0-1.0)
+     *
+     * @author Angela-Maria Despotopoulou
+     */
+    record LastRunStats(
+            java.time.LocalDateTime lastTrainedAt,
+            long samplesUsedInLastRun,
+            double accuracyLastRun,
+            double precisionLastRun,
+            double recallLastRun) {
+    }
+
+    /**
      * Executes the startup model restoration sequence.
      *
      * <p>Called automatically when the Spring application context is fully

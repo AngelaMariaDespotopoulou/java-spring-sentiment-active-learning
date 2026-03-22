@@ -1,0 +1,107 @@
+@startuml architecture
+
+title Sentiment Active Learning — Component Architecture
+
+skinparam componentStyle rectangle
+skinparam roundcorner 8
+skinparam componentBorderColor #444444
+skinparam componentBackgroundColor #F8F8F8
+skinparam componentFontSize 13
+skinparam arrowThickness 2
+skinparam packageBorderColor #888888
+skinparam packageFontSize 14
+skinparam packageFontStyle bold
+skinparam databaseBorderColor #444444
+skinparam databaseBackgroundColor #EEF4FF
+skinparam cloudBorderColor #444444
+skinparam cloudBackgroundColor #FFF4EE
+skinparam noteBorderColor #CCAA00
+skinparam noteBackgroundColor #FFFBE6
+
+actor "API Client\n(Swagger UI / HTTP)" as client
+
+package "Spring Boot Application" {
+
+    package "API Layer" {
+        [ReviewController] as rc
+        [ModelController]  as mc
+    }
+
+    package "Service Layer — Core" {
+        [ActiveLearningService] as als
+        [ClassifierService]     as clf
+        [TrainingService]       as trainer
+    }
+
+    package "Service Layer — Oracle" {
+        [ClaudeOracleService]  as oracle
+        [ClaudeRequestMapper]  as mapper
+    }
+
+    package "Persistence Layer" {
+        [ReviewSampleDaoImpl]      as dao
+        [ReviewSampleRepository]   as repo
+    }
+
+    package "Configuration" {
+        [SecurityConfig]        as sec
+        [ActiveLearningProps]   as alp
+        [ClaudeClientConfig]    as ccc
+        [OpenApiConfig]         as oac
+    }
+}
+
+database "H2 Database\n(in-memory, dev)" as h2
+cloud "Anthropic Claude API\n(claude-sonnet-4)" as claudeapi
+file "Model File\n(sentiment-model.ser)" as modelfile
+
+' API Layer → Service Layer
+client  -->  rc      : HTTP requests\n(reviews)
+client  -->  mc      : HTTP requests\n(model / training)
+rc      -->  als     : submitReview()\nlabelReview()\nsubmitFeedback()
+mc      -->  als     : getStatus()
+mc      -->  trainer : train()
+
+' Service Layer — Core internal
+als     -->  clf     : classify()\nupdateModel()
+als     -->  oracle  : label()
+als     -->  dao     : save() / update() / find()
+trainer -->  clf     : updateModel()
+trainer -->  dao     : findAllLabelled()\ncountLabelled()
+
+' Oracle
+oracle  -->  mapper  : buildRequest()
+oracle  -->  claudeapi : POST /v1/messages
+
+' Persistence
+dao     -->  repo    : delegates to
+repo    -->  h2      : JPA / Hibernate
+
+' Model file
+trainer -->  modelfile : serialize on disk
+trainer ..>  modelfile : deserialize at startup
+
+' Config
+ccc     ..>  oracle  : provides RestClient
+alp     ..>  als     : thresholds / batch size
+alp     ..>  trainer : model path / staleness
+sec     ..>  rc      : Basic Auth (SWAGGER role)
+sec     ..>  mc      : Basic Auth (SWAGGER role)
+oac     ..>  rc      : OpenAPI metadata
+oac     ..>  mc      : OpenAPI metadata
+
+note right of claudeapi
+  Consulted only when
+  classifier confidence
+  < uncertaintyThreshold
+  (default: 0.65)
+end note
+
+note right of modelfile
+  Written after every
+  training run.
+  Loaded at startup if
+  not stale.
+end note
+
+@enduml

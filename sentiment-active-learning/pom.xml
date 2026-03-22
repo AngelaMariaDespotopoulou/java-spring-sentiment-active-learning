@@ -26,7 +26,7 @@
         its own uncertainty, consults Claude AI as a labelling oracle, and retrains itself
         continuously to improve accuracy.
     </description>
-    <url>https://github.com/amdespotopoulou/java-spring-sentiment-active-learning</url>
+    <url>https://github.com/AngelaMariaDespotopoulou/java-spring-sentiment-active-learning</url>
 
     <licenses>
         <license>
@@ -40,7 +40,7 @@
         <developer>
             <id>amdespotopoulou</id>
             <name>Angela-Maria Despotopoulou</name>
-            <url>https://github.com/amdespotopoulou</url>
+            <url>https://github.com/AngelaMariaDespotopoulou</url>
             <roles>
                 <role>developer</role>
             </roles>
@@ -99,18 +99,18 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 
         <!--
-            springdoc-openapi 2.5.0 - latest stable for Spring Boot 3.x.
+            springdoc-openapi 2.8.16 - latest stable for Spring Boot 3.5.x.
             Provides Swagger UI at /swagger-ui/index.html and the OpenAPI 3
             specification at /v3/api-docs. Both endpoints are protected via
             Spring Security HTTP Basic Auth (see SecurityConfig).
 
             IMPORTANT: Do NOT pin swagger-annotations-jakarta separately.
-            SpringDoc 2.5.x bundles swagger-core-jakarta internally. Its
+            SpringDoc 2.8.x bundles swagger-core-jakarta internally. Its
             ModelResolver calls Schema.$dynamicRef() added in 2.2.26+.
             Pinning any older version causes NoSuchMethodError on /v3/api-docs.
             Let Maven transitive resolution supply the correct matching version.
         -->
-        <springdoc.version>2.5.0</springdoc.version>
+        <springdoc.version>2.8.16</springdoc.version>
 
         <!--
             Jackson is managed by spring-boot-starter-parent; version pinned
@@ -353,6 +353,28 @@
                     <quiet>true</quiet>
                     <failOnError>false</failOnError>
                     <outputDirectory>target/site/apidocs</outputDirectory>
+                </configuration>
+            </plugin>
+
+            <!--
+                Surefire (test runner) configuration:
+                  - -XX:+EnableDynamicAgentLoading suppresses the JVM warning
+                    emitted on JDK 21+ when Mockito self-attaches via ByteBuddy
+                    to enable the inline mock maker. Without this flag the test
+                    run succeeds but prints several WARNING lines about dynamic
+                    agent loading being disallowed in a future JDK release.
+                  - -Xshare:off suppresses the "Sharing is only supported for
+                    boot loader classes" warning that appears when ByteBuddy
+                    appends to the bootstrap classpath at runtime.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        -XX:+EnableDynamicAgentLoading
+                        -Xshare:off
+                    </argLine>
                 </configuration>
             </plugin>
 
