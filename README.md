@@ -1,5 +1,9 @@
 # Sentiment Active Learning
 
+<p align="center">
+<a href="https://github.com/AngelaMariaDespotopoulou/java-spring-sentiment-active-learning/releases"><img src="https://img.shields.io/badge/latest%20release-v1.0.0-blueviolet" alt="Release"></a>
+</p>
+
 A Java Spring Boot application that classifies movie review sentiment using a Naive Bayes model built with Oracle's Tribuo library. Features a full active learning cycle: the model detects its own uncertainty, consults Claude AI as an oracle for labelling, and retrains itself continuously to improve.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](https://openjdk.org/)
