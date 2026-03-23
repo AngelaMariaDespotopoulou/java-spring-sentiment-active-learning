@@ -1,0 +1,117 @@
+# =============================================================================
+# .dockerignore — sentiment-active-learning
+#
+# Excludes files and directories from the Docker build context.
+# A smaller build context means faster docker build invocations because
+# Docker does not need to transfer excluded files to the daemon.
+#
+# This file mirrors .gitignore but is focused on what the Dockerfile
+# actually needs: pom.xml, .mvn/, and src/. Everything else is noise.
+# =============================================================================
+
+
+# =============================================================================
+# GIT
+# =============================================================================
+.git/
+.gitignore
+.gitattributes
+
+
+# =============================================================================
+# MAVEN BUILD OUTPUT
+# Docker builds from source — the target/ directory is always regenerated
+# inside the build stage. Including it would bloat the context and risk
+# shipping stale artefacts.
+# =============================================================================
+target/
+
+
+# =============================================================================
+# ENVIRONMENT & SECRETS — NEVER IN THE BUILD CONTEXT
+# =============================================================================
+.env
+*.env
+.env.*
+!.env.local.template
+!.env.hub.template
+application-dev.properties
+application-local.properties
+application-secrets.properties
+secrets/
+
+
+# =============================================================================
+# TRAINED MODEL FILES
+# The model/ directory is mounted as a Docker volume at runtime.
+# It must never be baked into the image.
+# =============================================================================
+model/
+*.ser
+
+
+# =============================================================================
+# IDE & EDITOR FILES
+# =============================================================================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.code-workspace
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+.sts4-cache/
+out/
+*.orig
+*.rej
+
+
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# =============================================================================
+# LOGS
+# =============================================================================
+*.log
+*.log.*
+logs/
+
+
+# =============================================================================
+# DOCUMENTATION & ASSETS
+# Not needed to build the JAR.
+# =============================================================================
+docs/
+postman/
+swagger/
+data-models/
+diagrams/
+*.md
+*.png
+*.puml
+*.ico
+
+
+# =============================================================================
+# DOCKER FILES THEMSELVES
+# The Dockerfile and docker-compose files are not needed inside the image.
+# =============================================================================
+docker-compose*.yml
+.dockerignore

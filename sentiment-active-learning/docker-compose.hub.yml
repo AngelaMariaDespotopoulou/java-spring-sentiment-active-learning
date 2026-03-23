@@ -1,0 +1,110 @@
+# =============================================================================
+# docker-compose.hub.yml — Pull from DockerHub & run
+#
+# Pulls the published application image from DockerHub and runs it as a
+# single container with a named volume for model persistence.
+# No local build is performed — the source code is not required.
+#
+# The image pulled is:
+#   ${DOCKERHUB_USERNAME}/sentiment-active-learning:${IMAGE_TAG}
+# e.g.:
+#   amdespotopoulou/sentiment-active-learning:1.0.0
+#
+# Usage:
+#   1. Copy .env.hub to the project root and fill in CLAUDE_API_KEY,
+#      SWAGGER_PASSWORD, DOCKERHUB_USERNAME, and IMAGE_TAG
+#      (the file is already gitignored).
+#   2. docker compose -f docker-compose.hub.yml up -d
+#
+# Pull the latest image without restarting:
+#   docker compose -f docker-compose.hub.yml pull
+#
+# Upgrade to a new tag (update IMAGE_TAG in .env.hub, then):
+#   docker compose -f docker-compose.hub.yml up -d
+#
+# Stop and remove containers (volume is preserved):
+#   docker compose -f docker-compose.hub.yml down
+#
+# Stop and remove containers AND volume (destroys trained model):
+#   docker compose -f docker-compose.hub.yml down -v
+#
+# Publishing the image to DockerHub (run from the project root):
+#   docker build -t ${DOCKERHUB_USERNAME}/sentiment-active-learning:${IMAGE_TAG} .
+#   docker push ${DOCKERHUB_USERNAME}/sentiment-active-learning:${IMAGE_TAG}
+# =============================================================================
+
+services:
+
+  sentiment-app:
+    # ── Image ──────────────────────────────────────────────────────────────────
+    # Pulls the image from DockerHub. DOCKERHUB_USERNAME and IMAGE_TAG are
+    # resolved from the .env.hub file. No build context is needed.
+    image: ${DOCKERHUB_USERNAME}/sentiment-active-learning:${IMAGE_TAG}
+
+    # ── Container identity ─────────────────────────────────────────────────────
+    container_name: sentiment-active-learning
+
+    # ── Environment file ───────────────────────────────────────────────────────
+    # Loads all variables from .env.hub automatically — including
+    # DOCKERHUB_USERNAME and IMAGE_TAG which are used in the image: line above.
+    # ⚠️ .env.hub is gitignored — never committed to source control.
+    env_file:
+      - .env.hub
+
+    # ── Pull policy ────────────────────────────────────────────────────────────
+    # Always attempt to pull the latest digest for the given tag before
+    # starting. Ensures the running container matches the published image
+    # even if the local cache is stale. Remove this line if you prefer
+    # Docker to use the cached image when the tag already exists locally.
+    pull_policy: always
+
+    # ── Restart policy ─────────────────────────────────────────────────────────
+    restart: unless-stopped
+
+    # ── Port binding ───────────────────────────────────────────────────────────
+    ports:
+      - "${APP_PORT:-8080}:${APP_PORT:-8080}"
+
+    # ── Environment variables ──────────────────────────────────────────────────
+    # All values sourced from .env.hub. The compose file itself contains no
+    # secrets and is safe to commit.
+    environment:
+      APP_PORT:                          ${APP_PORT:-8080}
+      SPRING_PROFILES_ACTIVE:            ${SPRING_PROFILES_ACTIVE:-prod}
+      SWAGGER_USERNAME:                  ${SWAGGER_USERNAME}
+      SWAGGER_PASSWORD:                  ${SWAGGER_PASSWORD}
+      CLAUDE_API_KEY:                    ${CLAUDE_API_KEY}
+      MODEL_STORAGE_PATH:                ${MODEL_STORAGE_PATH:-/app/model/sentiment-model.ser}
+      MODEL_STALENESS_THRESHOLD:         ${MODEL_STALENESS_THRESHOLD:-5}
+
+    # ── Volume ─────────────────────────────────────────────────────────────────
+    # Named volume for the trained model file. Persists across container
+    # restarts and image upgrades. The model survives a `docker compose up -d`
+    # with a new IMAGE_TAG — only `docker compose down -v` destroys it.
+    volumes:
+      - sal-model:/app/model
+
+    # ── Health check ───────────────────────────────────────────────────────────
+    healthcheck:
+      test: >
+        wget -qO- http://localhost:${APP_PORT:-8080}/actuator/health
+        | grep -q '"status":"UP"'
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+    # ── Logging ────────────────────────────────────────────────────────────────
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  sal-model:
+    name: sal-model
+    driver: local

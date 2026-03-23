@@ -53,7 +53,10 @@ spring.log
 # =============================================================================
 .env
 *.env
+.env.*
 !.env.template
+!.env.local.template
+!.env.hub.template
 application-local.properties
 application-secrets.properties
 application-dev.properties
@@ -199,6 +202,9 @@ $RECYCLE.BIN/
 # DOCKER
 # =============================================================================
 .docker/
+
+# docker-compose override files with local environment specifics
+docker-compose.override.yml
 
 
 # =============================================================================

@@ -19,6 +19,17 @@
 # Windows scripts — always CRLF
 *.bat text eol=crlf
 
+# Docker — text files normalised to LF
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose*.yml text eol=lf
+.env.template text eol=lf
+.env.local.template text eol=lf
+.env.hub.template text eol=lf
+
+# PlantUML source files
+*.puml text eol=lf
+
 # Binary files — no line ending conversion, no diff
 *.jar binary
 *.class binary

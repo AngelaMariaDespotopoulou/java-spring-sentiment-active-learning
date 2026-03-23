@@ -1,0 +1,105 @@
+# =============================================================================
+# docker-compose.local.yml — Local build & run
+#
+# Builds the application image from source using the local Dockerfile
+# and runs it as a single container with a named volume for model persistence.
+#
+# Usage:
+#   1. Copy .env.local to the project root and fill in CLAUDE_API_KEY
+#      and SWAGGER_PASSWORD (the file is already gitignored).
+#   2. docker compose -f docker-compose.local.yml up --build
+#
+# Rebuild after source changes:
+#   docker compose -f docker-compose.local.yml up --build
+#
+# Run in detached mode (background):
+#   docker compose -f docker-compose.local.yml up --build -d
+#
+# Stop and remove containers (volume is preserved):
+#   docker compose -f docker-compose.local.yml down
+#
+# Stop and remove containers AND volume (destroys trained model):
+#   docker compose -f docker-compose.local.yml down -v
+# =============================================================================
+
+services:
+
+  sentiment-app:
+    # ── Build ──────────────────────────────────────────────────────────────────
+    # Build the image from the Dockerfile in the project root.
+    # The image is tagged locally as sentiment-active-learning:local for
+    # easy identification. It is never pushed to a registry from this file.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sentiment-active-learning:local
+
+    # ── Container identity ─────────────────────────────────────────────────────
+    container_name: sentiment-active-learning-local
+
+    # ── Environment file ───────────────────────────────────────────────────────
+    # Loads all variables from .env.local automatically.
+    # No --env-file flag needed on the command line.
+    # ⚠️ .env.local is gitignored — never committed to source control.
+    env_file:
+      - .env.local
+
+    # ── Restart policy ─────────────────────────────────────────────────────────
+    # Restart on failure but not if the container was stopped intentionally.
+    restart: on-failure
+
+    # ── Port binding ───────────────────────────────────────────────────────────
+    # Maps APP_PORT on the host to APP_PORT inside the container.
+    # Change APP_PORT in .env.local if 8080 is already in use.
+    ports:
+      - "${APP_PORT:-8080}:${APP_PORT:-8080}"
+
+    # ── Environment variables ──────────────────────────────────────────────────
+    # All values are sourced from the .env.local file (or .env by default).
+    # None are hardcoded here — the compose file itself is safe to commit.
+    environment:
+      APP_PORT:                          ${APP_PORT:-8080}
+      SPRING_PROFILES_ACTIVE:            ${SPRING_PROFILES_ACTIVE:-prod}
+      SWAGGER_USERNAME:                  ${SWAGGER_USERNAME}
+      SWAGGER_PASSWORD:                  ${SWAGGER_PASSWORD}
+      CLAUDE_API_KEY:                    ${CLAUDE_API_KEY}
+      MODEL_STORAGE_PATH:                ${MODEL_STORAGE_PATH:-/app/model/sentiment-model.ser}
+      MODEL_STALENESS_THRESHOLD:         ${MODEL_STALENESS_THRESHOLD:-5}
+
+    # ── Volume ─────────────────────────────────────────────────────────────────
+    # Mounts the named volume sal-model-local at the path where TrainingService
+    # serialises the trained model. The volume persists across container
+    # restarts and rebuilds — the trained model is never lost unless you
+    # explicitly run `docker compose down -v`.
+    volumes:
+      - sal-model-local:/app/model
+
+    # ── Health check ───────────────────────────────────────────────────────────
+    # Overrides the Dockerfile HEALTHCHECK with the correct port from the env.
+    # Docker marks the container UNHEALTHY after 3 consecutive failures,
+    # which triggers a restart under the on-failure restart policy.
+    healthcheck:
+      test: >
+        wget -qO- http://localhost:${APP_PORT:-8080}/actuator/health
+        | grep -q '"status":"UP"'
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+    # ── Logging ────────────────────────────────────────────────────────────────
+    # Limits log file size to prevent unbounded disk usage on long-running
+    # local deployments.
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  sal-model-local:
+    name: sal-model-local
+    driver: local
