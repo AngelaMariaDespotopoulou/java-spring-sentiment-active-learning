@@ -1,9 +1,5 @@
 # Sentiment Active Learning
 
-<p align="center">
-<a href="https://github.com/AngelaMariaDespotopoulou/java-spring-sentiment-active-learning/releases"><img src="https://img.shields.io/badge/latest%20release-v1.0.0-blueviolet" alt="Release"></a>
-</p>
-
 A Java Spring Boot application that classifies movie review sentiment using a Naive Bayes model built with Oracle's Tribuo library. Features a full active learning cycle: the model detects its own uncertainty, consults Claude AI as an oracle for labelling, and retrains itself continuously to improve.
 
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)](https://openjdk.org/)
@@ -175,13 +171,17 @@ Database           H2 (in-memory, dev) — easily replaceable with MySQL or Post
 
 The dashed arrows in the diagram represent Spring dependency injection. Solid arrows represent runtime method calls. The trained model file (`.ser`) is persisted to a configurable path — mounted as a Docker volume in containerised deployments — so the model survives application restarts.
 
+The full active learning cycle — from review submission through classification, oracle consultation, and automatic retraining — is shown in the sequence diagram below:
+
+![Active Learning Cycle](pictures/active_learning_cycle-Active_Learning_Cycle__Review_Submission_Flow.png)
+
 ---
 
 ## 🗄️ Data Model
 
 The core entity is `ReviewSample` — a single movie review text with its assigned label and audit timestamps.
 
-![Entity Model](pictures/entity_model-Entity_Model__Persistence_Layer.png)
+![Entity Model](pictures/entity_model-Entity_Model___Persistence_Layer.png)
 
 **On the database:** the application ships with H2 in-memory for development. Switching to MySQL or PostgreSQL requires only two changes — the `spring.datasource.*` properties in `application.properties` and the appropriate JDBC driver dependency in `pom.xml`. The JPA entity model and all queries are database-agnostic.
 
